@@ -129,8 +129,10 @@ class CheckinViewModel(
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
                 val s = _uiState.value
+                val existingId = measurementRepo.getMeasurementForDay(date)?.id
                 measurementRepo.saveMeasurement(
                     MeasurementEntity(
+                        id     = existingId ?: java.util.UUID.randomUUID().toString(),
                         date   = date,
                         weight = s.weight.toFloatOrNull() ?: 0f,
                         chest  = s.chest.toFloatOrNull()  ?: 0f,

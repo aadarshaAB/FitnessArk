@@ -20,6 +20,9 @@ class MeasurementRepository(private val dao: MeasurementDao) {
 
     suspend fun getLatestMeasurement(): MeasurementEntity? = dao.getLatestMeasurement()
 
+    suspend fun getMeasurementForDay(date: Long): MeasurementEntity? =
+        dao.getMeasurementForDay(DateUtils.getStartOfDay(date), DateUtils.getEndOfDay(date))
+
     suspend fun getMeasurementCount(): Int = dao.getMeasurementCount()
 
     suspend fun calculateStreak(): Int {
