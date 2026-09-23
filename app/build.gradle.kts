@@ -83,9 +83,6 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
-    // Accompanist
-    implementation(libs.accompanist.permissions)
-
     // ExifInterface
     implementation(libs.androidx.exifinterface)
 
