@@ -1,0 +1,27 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android Studio / IntelliJ
+.idea/*
+!.idea/codeStyles
+!.idea/runConfigurations
+
+# Gradle
+**/build/
+!src/**/build/
+
+# Keystore
+*.jks
+*.keystore
+
+# Log/OS files
+*.log
+Thumbs.db

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="fitness_ark_photos" path="photos/" />
+    <files-path name="fitness_ark_exports" path="exports/" />
+    <cache-path name="fitness_ark_cache" path="." />
+    <external-cache-path name="fitness_ark_camera_temp" path="." />
+</paths>
