@@ -22,38 +22,46 @@ class PhotoRepository(
         side: Bitmap?,
         back: Bitmap?
     ) {
-        // Check if there's already a photo for this day and delete it first if so
+        // Merge into the day's existing entry (if any) instead of replacing it,
+        // so angles not passed in this call are preserved rather than wiped.
         val startOfDay = com.fitnessark.util.DateUtils.getStartOfDay(photo.date)
         val endOfDay = com.fitnessark.util.DateUtils.getEndOfDay(photo.date)
         val existing = dao.getPhotoByDate(startOfDay, endOfDay)
-        
-        if (existing != null) {
-            deletePhoto(existing.id)
-        }
 
-        val baseId = photo.id
+        val baseId = existing?.id ?: photo.id
 
-        val frontPath = front?.let {
-            val compressed = imageCompressor.compress(it, 1024, 80)
-            imageCompressor.saveToInternalStorage(context, compressed, "front_${baseId}.jpg")
-        }
-        val sidePath = side?.let {
-            val compressed = imageCompressor.compress(it, 1024, 80)
-            imageCompressor.saveToInternalStorage(context, compressed, "side_${baseId}.jpg")
-        }
-        val backPath = back?.let {
-            val compressed = imageCompressor.compress(it, 1024, 80)
-            imageCompressor.saveToInternalStorage(context, compressed, "back_${baseId}.jpg")
-        }
+        fun saveAngle(bitmap: Bitmap?, existingPath: String?, fileName: String): String? =
+            bitmap?.let {
+                val compressed = imageCompressor.compress(it, 1024, 80)
+                val newPath = imageCompressor.saveToInternalStorage(context, compressed, fileName)
+                if (existingPath != null && existingPath != newPath) File(existingPath).delete()
+                newPath
+            } ?: existingPath
 
-        val sourceBitmap = front ?: side ?: back
-        val thumbnailPath = sourceBitmap?.let {
+        val frontPath = saveAngle(front, existing?.frontPhotoPath, "front_${baseId}.jpg")
+        val sidePath = saveAngle(side, existing?.sidePhotoPath, "side_${baseId}.jpg")
+        val backPath = saveAngle(back, existing?.backPhotoPath, "back_${baseId}.jpg")
+
+        // Regenerate the thumbnail only when the angle it's derived from changed
+        // (front takes priority, matching updatePhotoAngle), or none exists yet.
+        val thumbnailSource = when {
+            front != null -> front
+            side != null && existing?.frontPhotoPath == null -> side
+            back != null && existing?.frontPhotoPath == null && existing?.sidePhotoPath == null -> back
+            existing?.thumbnailPath == null -> front ?: side ?: back
+            else -> null
+        }
+        val thumbnailPath = thumbnailSource?.let {
             val thumb = imageCompressor.createThumbnail(it, 200)
-            imageCompressor.saveToInternalStorage(context, thumb, "thumb_${baseId}.jpg")
-        }
+            val newPath = imageCompressor.saveToInternalStorage(context, thumb, "thumb_${baseId}.jpg")
+            val oldPath = existing?.thumbnailPath
+            if (oldPath != null && oldPath != newPath) File(oldPath).delete()
+            newPath
+        } ?: existing?.thumbnailPath
 
         dao.insertPhoto(
             photo.copy(
+                id = baseId,
                 frontPhotoPath = frontPath,
                 sidePhotoPath = sidePath,
                 backPhotoPath = backPath,
