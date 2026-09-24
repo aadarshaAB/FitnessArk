@@ -8,11 +8,13 @@ import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.FileUtils
 import com.fitnessark.util.ZipUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 data class SettingsUiState(
@@ -40,7 +42,7 @@ class SettingsViewModel(
 
     fun refreshStats() {
         viewModelScope.launch {
-            val size = FileUtils.calculateAppSize(context)
+            val size = withContext(Dispatchers.IO) { FileUtils.calculateAppSize(context) }
             val count = measurementRepo.getMeasurementCount()
             _uiState.update { it.copy(appSizeBytes = size, entryCount = count) }
         }
@@ -57,9 +59,11 @@ class SettingsViewModel(
     suspend fun exportData(): Result<File> {
         _uiState.update { it.copy(isExporting = true) }
         return try {
-            val measurements = measurementRepo.getMeasurementsBetween(0L, Long.MAX_VALUE)
-            val photos = photoRepo.getAllPhotosList()
-            val zipFile = zipUtils.exportData(context, measurements, photos)
+            val zipFile = withContext(Dispatchers.IO) {
+                val measurements = measurementRepo.getMeasurementsBetween(0L, Long.MAX_VALUE)
+                val photos = photoRepo.getAllPhotosList()
+                zipUtils.exportData(context, measurements, photos)
+            }
             _uiState.update { it.copy(isExporting = false, message = "Export ready") }
             Result.success(zipFile)
         } catch (e: Exception) {
@@ -71,8 +75,10 @@ class SettingsViewModel(
     fun writeExportToUri(zipFile: File, uri: Uri) {
         viewModelScope.launch {
             try {
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    zipFile.inputStream().use { it.copyTo(out) }
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        zipFile.inputStream().use { it.copyTo(out) }
+                    }
                 }
                 _uiState.update { it.copy(message = "Export saved successfully") }
             } catch (e: Exception) {
@@ -85,13 +91,16 @@ class SettingsViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isImporting = true) }
             try {
-                val cacheFile = File(context.cacheDir, "import_${System.currentTimeMillis()}.zip")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    cacheFile.outputStream().use { input.copyTo(it) }
-                }
+                val result = withContext(Dispatchers.IO) {
+                    val cacheFile = File(context.cacheDir, "import_${System.currentTimeMillis()}.zip")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        cacheFile.outputStream().use { input.copyTo(it) }
+                    }
 
-                val result = zipUtils.importData(context, cacheFile)
-                cacheFile.delete()
+                    val importResult = zipUtils.importData(context, cacheFile)
+                    cacheFile.delete()
+                    importResult
+                }
 
                 if (result.success) {
                     result.measurements.forEach { measurementRepo.saveMeasurement(it) }
@@ -117,7 +126,9 @@ class SettingsViewModel(
             try {
                 measurementRepo.deleteAllMeasurements()
                 photoRepo.deleteAllPhotos()
-                FileUtils.deleteDirectoryRecursively(File(context.filesDir, "photos"))
+                withContext(Dispatchers.IO) {
+                    FileUtils.deleteDirectoryRecursively(File(context.filesDir, "photos"))
+                }
                 _uiState.update { it.copy(message = "All data cleared", entryCount = 0, appSizeBytes = 0L) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Clear failed: ${e.message}") }

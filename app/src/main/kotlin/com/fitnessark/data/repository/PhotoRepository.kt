@@ -5,7 +5,9 @@ import android.graphics.Bitmap
 import com.fitnessark.data.local.dao.PhotoDao
 import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.util.ImageCompressor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class PhotoRepository(
@@ -21,7 +23,7 @@ class PhotoRepository(
         front: Bitmap?,
         side: Bitmap?,
         back: Bitmap?
-    ) {
+    ) = withContext(Dispatchers.IO) {
         // Merge into the day's existing entry (if any) instead of replacing it,
         // so angles not passed in this call are preserved rather than wiped.
         val startOfDay = com.fitnessark.util.DateUtils.getStartOfDay(photo.date)
@@ -70,8 +72,8 @@ class PhotoRepository(
         )
     }
 
-    suspend fun deletePhoto(id: String) {
-        val photo = dao.getPhotoById(id) ?: return
+    suspend fun deletePhoto(id: String) = withContext(Dispatchers.IO) {
+        val photo = dao.getPhotoById(id) ?: return@withContext
         listOfNotNull(
             photo.frontPhotoPath,
             photo.sidePhotoPath,
@@ -91,7 +93,7 @@ class PhotoRepository(
 
     suspend fun getPhotoByDate(start: Long, end: Long): PhotoEntity? = dao.getPhotoByDate(start, end)
 
-    suspend fun deleteAllPhotos() {
+    suspend fun deleteAllPhotos() = withContext(Dispatchers.IO) {
         val photos = dao.getAllPhotosList()
         photos.forEach { photo ->
             listOfNotNull(
@@ -112,8 +114,8 @@ class PhotoRepository(
         photoId: String,
         angle: String,
         newBitmap: android.graphics.Bitmap
-    ) {
-        val existing = dao.getPhotoById(photoId) ?: return
+    ) = withContext(Dispatchers.IO) {
+        val existing = dao.getPhotoById(photoId) ?: return@withContext
 
         // Save new compressed image
         val fileName = "${angle}_${photoId}.jpg"

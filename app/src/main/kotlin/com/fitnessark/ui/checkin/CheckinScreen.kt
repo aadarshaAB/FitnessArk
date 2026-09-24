@@ -40,6 +40,9 @@ import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.BitmapUtils
 import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -141,14 +144,22 @@ class CheckinViewModel(
                     )
                 )
                 if (s.frontPhotoUri != null || s.sidePhotoUri != null || s.backPhotoUri != null) {
-                    fun loadBitmap(uri: Uri?) = uri?.let { BitmapUtils.decodeUriToBitmap(context, it) }
+                    coroutineScope {
+                        fun loadBitmapAsync(uri: Uri?) = uri?.let {
+                            async(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, it) }
+                        }
 
-                    photoRepo.savePhoto(
-                        PhotoEntity(date = date),
-                        loadBitmap(s.frontPhotoUri),
-                        loadBitmap(s.sidePhotoUri),
-                        loadBitmap(s.backPhotoUri)
-                    )
+                        val frontDeferred = loadBitmapAsync(s.frontPhotoUri)
+                        val sideDeferred = loadBitmapAsync(s.sidePhotoUri)
+                        val backDeferred = loadBitmapAsync(s.backPhotoUri)
+
+                        photoRepo.savePhoto(
+                            PhotoEntity(date = date),
+                            frontDeferred?.await(),
+                            sideDeferred?.await(),
+                            backDeferred?.await()
+                        )
+                    }
                 }
                 _uiState.update { it.copy(isSaving = false, saved = true) }
             } catch (e: Exception) {

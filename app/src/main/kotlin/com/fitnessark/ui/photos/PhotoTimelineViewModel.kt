@@ -9,6 +9,9 @@ import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.BitmapUtils
 import com.fitnessark.util.DateUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,9 +89,17 @@ class PhotoTimelineViewModel(
         backUri:   Uri?
     ) {
         viewModelScope.launch {
-            fun loadBitmap(uri: Uri?) = uri?.let { BitmapUtils.decodeUriToBitmap(context, it) }
+            coroutineScope {
+                fun loadBitmapAsync(uri: Uri?) = uri?.let {
+                    async(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, it) }
+                }
 
-            repo.savePhoto(photo, loadBitmap(frontUri), loadBitmap(sideUri), loadBitmap(backUri))
+                val frontDeferred = loadBitmapAsync(frontUri)
+                val sideDeferred = loadBitmapAsync(sideUri)
+                val backDeferred = loadBitmapAsync(backUri)
+
+                repo.savePhoto(photo, frontDeferred?.await(), sideDeferred?.await(), backDeferred?.await())
+            }
         }
     }
 

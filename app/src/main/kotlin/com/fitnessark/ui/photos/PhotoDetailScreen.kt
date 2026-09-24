@@ -27,7 +27,9 @@ import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.BitmapUtils
 import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +59,7 @@ fun PhotoDetailScreen(
     ) { success ->
         if (success && cameraUri != null && retakeAngle != null) {
             scope.launch {
-                val bitmap = BitmapUtils.decodeUriToBitmap(context, cameraUri!!)
+                val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, cameraUri!!) }
                 if (bitmap != null) {
                     viewModel.retakePhotoAngle(context, photoId, retakeAngle!!, bitmap)
                     snackbarHost.showSnackbar("${retakeAngle!!.replaceFirstChar { it.uppercase() }} photo updated")
@@ -73,7 +75,7 @@ fun PhotoDetailScreen(
     ) { uri ->
         if (uri != null && retakeAngle != null) {
             scope.launch {
-                val bitmap = BitmapUtils.decodeUriToBitmap(context, uri)
+                val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, uri) }
                 if (bitmap != null) {
                     viewModel.retakePhotoAngle(context, photoId, retakeAngle!!, bitmap)
                     snackbarHost.showSnackbar("${retakeAngle!!.replaceFirstChar { it.uppercase() }} photo updated")
