@@ -79,20 +79,17 @@ class CheckinViewModel(
 
     init {
         viewModelScope.launch {
-            measurementRepo.getLatestMeasurement()?.let { m ->
-                val todayStart = DateUtils.getStartOfDay(System.currentTimeMillis())
-                if (m.date >= todayStart) {
-                    _uiState.update { s ->
-                        s.copy(
-                            weight = if (m.weight > 0) m.weight.toString() else "",
-                            chest  = if (m.chest  > 0) m.chest.toString()  else "",
-                            waist  = if (m.waist  > 0) m.waist.toString()  else "",
-                            hips   = if (m.hips   > 0) m.hips.toString()   else "",
-                            biceps = if (m.biceps > 0) m.biceps.toString() else "",
-                            thighs = if (m.thighs > 0) m.thighs.toString() else "",
-                            notes  = m.notes ?: ""
-                        )
-                    }
+            measurementRepo.getMeasurementForDay(date)?.let { m ->
+                _uiState.update { s ->
+                    s.copy(
+                        weight = if (m.weight > 0) m.weight.toString() else "",
+                        chest  = if (m.chest  > 0) m.chest.toString()  else "",
+                        waist  = if (m.waist  > 0) m.waist.toString()  else "",
+                        hips   = if (m.hips   > 0) m.hips.toString()   else "",
+                        biceps = if (m.biceps > 0) m.biceps.toString() else "",
+                        thighs = if (m.thighs > 0) m.thighs.toString() else "",
+                        notes  = m.notes ?: ""
+                    )
                 }
             }
         }
