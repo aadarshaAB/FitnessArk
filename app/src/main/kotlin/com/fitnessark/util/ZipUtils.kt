@@ -20,6 +20,11 @@ data class ImportResult(
 
 class ZipUtils {
 
+    /** Rejects entry names that could traverse outside the target folder (zip slip). */
+    private fun isSafeEntryName(name: String): Boolean =
+        name != "." && name != ".." &&
+            !name.contains("/") && !name.contains("\\")
+
     fun exportData(
         context: Context,
         measurements: List<MeasurementEntity>,
@@ -135,7 +140,7 @@ class ZipUtils {
                         }
                         entry.name.startsWith("photos/") -> {
                             val fileName = entry.name.removePrefix("photos/")
-                            if (fileName.isNotEmpty()) {
+                            if (fileName.isNotEmpty() && isSafeEntryName(fileName)) {
                                 photoFiles[fileName] = zis.readBytes()
                             }
                         }
@@ -147,8 +152,12 @@ class ZipUtils {
 
             // Restore photo files to internal storage
             val photosDir = File(context.filesDir, "photos").apply { mkdirs() }
+            val photosDirCanonical = photosDir.canonicalFile
             photoFiles.forEach { (name, bytes) ->
-                File(photosDir, name).writeBytes(bytes)
+                val target = File(photosDir, name).canonicalFile
+                if (target.parentFile == photosDirCanonical) {
+                    target.writeBytes(bytes)
+                }
             }
 
             // Update paths in photo entities
