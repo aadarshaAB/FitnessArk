@@ -9,13 +9,23 @@ import androidx.exifinterface.media.ExifInterface
 
 object BitmapUtils {
 
+    private const val MAX_DIMENSION = 2048
+
     /**
      * Loads a Bitmap from a Uri, respecting its EXIF orientation.
+     * Downscales large source images (e.g. 12-50MP camera photos) via inSampleSize
+     * to avoid OutOfMemoryError, since three photos may be decoded at once.
      */
     fun decodeUriToBitmap(context: Context, uri: Uri): Bitmap? {
         return try {
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, boundsOptions)
+            } ?: return null
+
             val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = false
+                inSampleSize = calculateInSampleSize(boundsOptions.outWidth, boundsOptions.outHeight, MAX_DIMENSION)
             }
 
             val bitmap = context.contentResolver.openInputStream(uri)?.use {
@@ -64,5 +74,17 @@ object BitmapUtils {
             e.printStackTrace()
             null
         }
+    }
+
+    private fun calculateInSampleSize(width: Int, height: Int, maxDimension: Int): Int {
+        var inSampleSize = 1
+        var w = width
+        var h = height
+        while (w / 2 >= maxDimension || h / 2 >= maxDimension) {
+            w /= 2
+            h /= 2
+            inSampleSize *= 2
+        }
+        return inSampleSize
     }
 }

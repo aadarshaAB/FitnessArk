@@ -37,7 +37,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import org.koin.androidx.compose.koinViewModel
@@ -335,7 +335,7 @@ fun DayDetailCard(
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "📝  \${measurement.notes}",
+                    "📝  ${measurement.notes}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
@@ -404,7 +404,7 @@ private fun MetricCell(
 @Composable
 fun MeasurementLineChart(
     entries:          List<Entry>,
-    labels:           List<String>,
+    labels:           Map<Float, String>,
     metricLabel:      String,
     onValueSelected:  (Int) -> Unit,
     onNothingSelected: () -> Unit,
@@ -470,7 +470,10 @@ fun MeasurementLineChart(
                 highlightLineWidth      = 1.5f
             }
 
-            chart.xAxis.valueFormatter = IndexAxisValueFormatter(labels.toTypedArray())
+            chart.xAxis.valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String =
+                    labels[value] ?: ""
+            }
             chart.data                 = LineData(dataSet)
             chart.animateX(400)
             chart.invalidate()
@@ -541,8 +544,10 @@ fun MeasurementTableRow(m: MeasurementEntity) {
             )
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("Weight" to "${m.weight}kg", "Chest" to "${m.chest}cm", "Waist" to "${m.waist}cm")
-                    .forEach { (label, value) ->
+                listOf("Weight" to (m.weight to "kg"), "Chest" to (m.chest to "cm"), "Waist" to (m.waist to "cm"))
+                    .forEach { (label, valueUnit) ->
+                        val (raw, unit) = valueUnit
+                        val value = if (raw > 0f) "%.1f%s".format(raw, unit) else "—"
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -553,8 +558,10 @@ fun MeasurementTableRow(m: MeasurementEntity) {
             }
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("Hips" to "${m.hips}cm", "Biceps" to "${m.biceps}cm", "Thighs" to "${m.thighs}cm")
-                    .forEach { (label, value) ->
+                listOf("Hips" to (m.hips to "cm"), "Biceps" to (m.biceps to "cm"), "Thighs" to (m.thighs to "cm"))
+                    .forEach { (label, valueUnit) ->
+                        val (raw, unit) = valueUnit
+                        val value = if (raw > 0f) "%.1f%s".format(raw, unit) else "—"
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)

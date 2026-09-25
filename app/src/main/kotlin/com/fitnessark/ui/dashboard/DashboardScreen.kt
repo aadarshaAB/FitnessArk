@@ -231,7 +231,7 @@ fun TodayWeightCard(weight: Float?, onEditClick: () -> Unit) {
 }
 
 @Composable
-fun ProgressOverviewCard(weightChange: Float, onClick: () -> Unit = {}) {
+fun ProgressOverviewCard(weightChange: Float?, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -243,7 +243,7 @@ fun ProgressOverviewCard(weightChange: Float, onClick: () -> Unit = {}) {
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val isPositive = weightChange > 0
+            val isPositive = (weightChange ?: 0f) > 0
             val trendColor = if (isPositive) MaterialTheme.colorScheme.error
             else MaterialTheme.colorScheme.primary
 
@@ -260,8 +260,11 @@ fun ProgressOverviewCard(weightChange: Float, onClick: () -> Unit = {}) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                val changeText = if (weightChange == 0f) "No change"
-                else "%+.1f kg".format(weightChange)
+                val changeText = when {
+                    weightChange == null -> "—"
+                    weightChange == 0f   -> "No change"
+                    else                 -> "%+.1f kg".format(weightChange)
+                }
                 Text(
                     text = changeText,
                     style = MaterialTheme.typography.titleMedium,

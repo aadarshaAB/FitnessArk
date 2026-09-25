@@ -19,7 +19,7 @@ data class DashboardUiState(
     val streakDays: Int = 0,
     val latestPhoto: PhotoEntity? = null,
     val measurementCount: Int = 0,
-    val weightChangeLast7Days: Float = 0f,
+    val weightChangeLast7Days: Float? = null,
     val isLoading: Boolean = true
 )
 
@@ -46,14 +46,15 @@ class DashboardViewModel(
             val sevenDaysAgo = today - TimeUnit.DAYS.toMillis(7)
             val recentMeasurements = measurementRepo.getMeasurementsBetween(sevenDaysAgo, today + TimeUnit.DAYS.toMillis(1))
 
-            val weightChange = if (recentMeasurements.size >= 2) {
-                val oldest = recentMeasurements.minByOrNull { it.date }?.weight ?: 0f
-                val newest = recentMeasurements.maxByOrNull { it.date }?.weight ?: 0f
+            val weighedMeasurements = recentMeasurements.filter { it.weight > 0f }
+            val weightChange = if (weighedMeasurements.size >= 2) {
+                val oldest = weighedMeasurements.minByOrNull { it.date }!!.weight
+                val newest = weighedMeasurements.maxByOrNull { it.date }!!.weight
                 newest - oldest
-            } else 0f
+            } else null
 
             val todayStart = DateUtils.getStartOfDay(System.currentTimeMillis())
-            val todayWeight = recentMeasurements.firstOrNull { it.date >= todayStart }?.weight
+            val todayWeight = recentMeasurements.firstOrNull { it.date >= todayStart && it.weight > 0f }?.weight
 
             _uiState.update {
                 it.copy(

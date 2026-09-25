@@ -90,9 +90,21 @@ class MeasurementsViewModel(
         }
     }
 
-    fun getChartLabels(): List<String> =
-        filteredMeasurementsWithValue(_uiState.value.selectedMetric)
-            .map { DateUtils.formatDateShort(it.date) }
+    /**
+     * Maps each chart Entry's X-value (day-offset from the first entry, as used
+     * in getChartData()) to its formatted date, so the chart's axis formatter
+     * looks up labels by day-offset rather than by list position. This stays
+     * correct even when days are skipped between entries.
+     */
+    fun getChartLabels(): Map<Float, String> {
+        val filtered = filteredMeasurementsWithValue(_uiState.value.selectedMetric)
+        if (filtered.isEmpty()) return emptyMap()
+        val firstDate = filtered.first().date
+        return filtered.associate { m ->
+            val dayOffset = TimeUnit.MILLISECONDS.toDays(m.date - firstDate).toFloat()
+            dayOffset to DateUtils.formatDateShort(m.date)
+        }
+    }
 
     // ── Dot-tap ───────────────────────────────────────────────────────────────
 
