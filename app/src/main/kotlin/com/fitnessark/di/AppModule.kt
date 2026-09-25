@@ -4,6 +4,7 @@ import androidx.room.Room
 import com.fitnessark.data.local.AppDatabase
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
+import com.fitnessark.data.repository.PreferencesRepository
 import com.fitnessark.ui.checkin.CheckinViewModel
 import com.fitnessark.ui.dashboard.DashboardViewModel
 import com.fitnessark.ui.measurements.MeasurementsViewModel
@@ -37,11 +38,12 @@ val appModule = module {
     // Repositories
     single { MeasurementRepository(get()) }
     single { PhotoRepository(get(), get(), androidContext()) }
+    single { PreferencesRepository(androidContext()) }
 
     // ViewModels
     viewModel { DashboardViewModel(get(), get()) }
     viewModel { MeasurementsViewModel(get()) }
     viewModel { PhotoTimelineViewModel(get()) }
-    viewModel { SettingsViewModel(androidContext(), get(), get(), get()) }
+    viewModel { SettingsViewModel(androidContext(), get(), get(), get(), get()) }
     viewModel { params -> CheckinViewModel(get(), get(), params.get()) }
 }

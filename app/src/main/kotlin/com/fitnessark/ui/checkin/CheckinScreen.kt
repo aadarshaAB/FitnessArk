@@ -374,23 +374,26 @@ fun CheckinScreen(
                 onClick = { viewModel.save(context) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 enabled = !state.isSaving,
-                colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor   = MaterialTheme.colorScheme.onPrimary
+                ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 if (state.isSaving) {
                     CircularProgressIndicator(
                         Modifier.size(22.dp),
-                        color = MaterialTheme.colorScheme.background,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.5.dp
                     )
                     Spacer(Modifier.width(10.dp))
-                    Text("Saving…", color = MaterialTheme.colorScheme.background,
+                    Text("Saving…", color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.SemiBold)
                 } else {
                     Icon(Icons.Default.Check, null,
-                        tint = MaterialTheme.colorScheme.background)
+                        tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(Modifier.width(8.dp))
-                    Text("Save Check-in", color = MaterialTheme.colorScheme.background,
+                    Text("Save Check-in", color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 }
             }
@@ -418,12 +421,15 @@ fun CheckinScreen(
                         currentCameraUri = uri
                         cameraLauncher.launch(uri)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Icon(Icons.Default.CameraAlt, null,
-                        tint = MaterialTheme.colorScheme.background)
+                        tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(Modifier.width(6.dp))
-                    Text("Take Photo", color = MaterialTheme.colorScheme.background)
+                    Text("Take Photo", color = MaterialTheme.colorScheme.onPrimary)
                 }
             },
             dismissButton = {
@@ -580,16 +586,19 @@ private fun PoseCaptureCard(
                     Button(
                         onClick = onCapture,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor   = MaterialTheme.colorScheme.onPrimary
+                        ),
                         contentPadding = PaddingValues(vertical = 8.dp),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(Icons.Default.CameraAlt, null,
-                            tint = MaterialTheme.colorScheme.background,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Capture ${slot.label}",
-                            color = MaterialTheme.colorScheme.background,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             style = MaterialTheme.typography.labelLarge)
                     }
                 }

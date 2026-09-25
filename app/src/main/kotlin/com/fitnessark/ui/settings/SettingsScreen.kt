@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.ui.theme.CyanPrimary
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -22,8 +23,6 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    isDarkTheme: Boolean,
-    onThemeToggle: (Boolean) -> Unit,
     viewModel: SettingsViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -92,13 +91,17 @@ fun SettingsScreen(
                         Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = isDarkTheme,
-                            onClick = { onThemeToggle(true); viewModel.setDarkTheme(true) })
+                        RadioButton(selected = state.themeMode == ThemeMode.DARK,
+                            onClick = { viewModel.setThemeMode(ThemeMode.DARK) })
                         Text("Dark", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(24.dp))
-                        RadioButton(selected = !isDarkTheme,
-                            onClick = { onThemeToggle(false); viewModel.setDarkTheme(false) })
+                        Spacer(Modifier.width(16.dp))
+                        RadioButton(selected = state.themeMode == ThemeMode.LIGHT,
+                            onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) })
                         Text("Light", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.width(16.dp))
+                        RadioButton(selected = state.themeMode == ThemeMode.SYSTEM,
+                            onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) })
+                        Text("System", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }

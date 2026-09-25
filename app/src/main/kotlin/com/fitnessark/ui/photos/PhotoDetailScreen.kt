@@ -203,15 +203,18 @@ fun PhotoDetailScreen(
                         Button(
                             onClick = { startRetake(angleKey) },
                             modifier = Modifier.weight(1f),
-                            colors   = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                            colors   = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor   = MaterialTheme.colorScheme.onPrimary
+                            ),
                             shape    = RoundedCornerShape(10.dp)
                         ) {
                             Icon(Icons.Default.CameraAlt, null,
-                                tint     = MaterialTheme.colorScheme.background,
+                                tint     = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Retake $label",
-                                color      = MaterialTheme.colorScheme.background,
+                                color      = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize   = 14.sp)
                         }
@@ -260,12 +263,15 @@ fun PhotoDetailScreen(
                         cameraUri = uri
                         cameraLauncher.launch(uri)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Icon(Icons.Default.CameraAlt, null,
-                        tint = MaterialTheme.colorScheme.background)
+                        tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(Modifier.width(6.dp))
-                    Text("Camera", color = MaterialTheme.colorScheme.background)
+                    Text("Camera", color = MaterialTheme.colorScheme.onPrimary)
                 }
             },
             dismissButton = {

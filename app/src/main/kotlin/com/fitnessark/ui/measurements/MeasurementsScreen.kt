@@ -413,6 +413,8 @@ fun MeasurementLineChart(
     val primaryColor      = CyanPrimary.toArgb()
     val onSurfaceColor    = MaterialTheme.colorScheme.onSurface.toArgb()
     val highlightColor    = MaterialTheme.colorScheme.tertiary.toArgb()
+    val axisGridColor     = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f).toArgb()
+    val dotHoleColor      = MaterialTheme.colorScheme.surface.toArgb()
 
     AndroidView(
         factory = { ctx ->
@@ -429,12 +431,12 @@ fun MeasurementLineChart(
                     position        = XAxis.XAxisPosition.BOTTOM
                     granularity     = 1f
                     textColor       = onSurfaceColor
-                    gridColor       = AndroidColor.argb(30, 255, 255, 255)
+                    gridColor       = axisGridColor
                     setDrawAxisLine(false)
                 }
                 axisLeft.apply {
                     textColor       = onSurfaceColor
-                    gridColor       = AndroidColor.argb(30, 255, 255, 255)
+                    gridColor       = axisGridColor
                     setDrawAxisLine(false)
                 }
                 axisRight.isEnabled = false
@@ -459,7 +461,7 @@ fun MeasurementLineChart(
                 lineWidth               = 2.5f
                 circleRadius            = 5f
                 circleHoleRadius        = 2.5f
-                circleHoleColor         = AndroidColor.parseColor("#0D1B2A")
+                circleHoleColor         = dotHoleColor
                 setDrawValues(false)
                 mode                    = LineDataSet.Mode.CUBIC_BEZIER
                 cubicIntensity          = 0.2f

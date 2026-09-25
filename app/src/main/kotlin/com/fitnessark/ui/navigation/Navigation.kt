@@ -35,7 +35,7 @@ val bottomNavScreens = listOf(
 )
 
 @Composable
-fun FitnessArkNavHost(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit) {
+fun FitnessArkNavHost() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -92,10 +92,7 @@ fun FitnessArkNavHost(isDarkTheme: Boolean, onThemeToggle: (Boolean) -> Unit) {
             }
 
             composable(Screen.Settings.route) {
-                SettingsScreen(
-                    isDarkTheme  = isDarkTheme,
-                    onThemeToggle = onThemeToggle
-                )
+                SettingsScreen()
             }
 
             // ── Full check-in — single route with optional date arg ────

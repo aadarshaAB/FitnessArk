@@ -110,9 +110,12 @@ fun DashboardScreen(
                 Button(
                     onClick = onNavigateToCheckin,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Full Check-in", color = MaterialTheme.colorScheme.background)
+                    Text("Full Check-in", color = MaterialTheme.colorScheme.onPrimary)
                 }
                 OutlinedButton(
                     onClick = {

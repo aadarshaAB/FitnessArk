@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
+import com.fitnessark.data.repository.PreferencesRepository
+import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.util.FileUtils
 import com.fitnessark.util.ZipUtils
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +20,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 data class SettingsUiState(
-    val isDarkTheme: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.DARK,
     val appSizeBytes: Long = 0L,
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
@@ -30,7 +32,8 @@ class SettingsViewModel(
     private val context: Context,
     private val measurementRepo: MeasurementRepository,
     private val photoRepo: PhotoRepository,
-    private val zipUtils: ZipUtils
+    private val zipUtils: ZipUtils,
+    private val preferencesRepo: PreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -38,6 +41,11 @@ class SettingsViewModel(
 
     init {
         refreshStats()
+        viewModelScope.launch {
+            preferencesRepo.themeMode.collect { mode ->
+                _uiState.update { it.copy(themeMode = mode) }
+            }
+        }
     }
 
     fun refreshStats() {
@@ -48,12 +56,8 @@ class SettingsViewModel(
         }
     }
 
-    fun toggleTheme() {
-        _uiState.update { it.copy(isDarkTheme = !it.isDarkTheme) }
-    }
-
-    fun setDarkTheme(dark: Boolean) {
-        _uiState.update { it.copy(isDarkTheme = dark) }
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { preferencesRepo.setThemeMode(mode) }
     }
 
     suspend fun exportData(): Result<File> {
