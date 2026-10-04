@@ -8,6 +8,7 @@ import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.TrendLine
+import com.fitnessark.util.WidgetUpdater
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +33,8 @@ data class DashboardUiState(
 
 class DashboardViewModel(
     private val measurementRepo: MeasurementRepository,
-    private val photoRepo: PhotoRepository
+    private val photoRepo: PhotoRepository,
+    private val widgetUpdater: WidgetUpdater
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -91,6 +93,7 @@ class DashboardViewModel(
             measurementRepo.saveMeasurement(
                 today?.copy(weight = weight) ?: MeasurementEntity(date = now, weight = weight)
             )
+            widgetUpdater.refresh()
         }
     }
 

@@ -9,6 +9,7 @@ import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.ui.dashboard.DashboardViewModel
 import com.fitnessark.util.ImageCompressor
+import com.fitnessark.util.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -42,7 +43,8 @@ class DashboardViewModelTest {
     }
 
     private fun viewModel() = DashboardViewModel(
-        repo, PhotoRepository(db.photoDao(), ImageCompressor(), TestSupport.context())
+        repo, PhotoRepository(db.photoDao(), ImageCompressor(), TestSupport.context()),
+        WidgetUpdater(TestSupport.context())
     )
 
     @Test fun seven_day_change_ignores_entries_with_blank_weight() = runBlocking {

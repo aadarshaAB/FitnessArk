@@ -11,6 +11,7 @@ import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.ui.checkin.CheckinViewModel
 import com.fitnessark.util.ImageCompressor
+import com.fitnessark.util.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -50,6 +51,7 @@ class CheckinViewModelTest {
         measurements,
         PhotoRepository(db.photoDao(), ImageCompressor(), context),
         flowOf(units),
+        WidgetUpdater(context),
         date
     )
 

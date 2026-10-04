@@ -41,6 +41,7 @@ fun DashboardScreen(
     onNavigateToCheckin: () -> Unit,
     onNavigateToProgress: () -> Unit,
     onNavigateToPhotos: () -> Unit,
+    openWeightDialogOnStart: Boolean = false,
     viewModel: DashboardViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -55,6 +56,8 @@ fun DashboardScreen(
         weightInitial = weightInput
         showWeightDialog = true
     }
+    // The widget's "Log weight" button opens straight to this dialog (it has no number of its own to save).
+    LaunchedEffect(openWeightDialogOnStart) { if (openWeightDialogOnStart) openWeightDialog() }
 
     Scaffold(
         topBar = {

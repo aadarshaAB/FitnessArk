@@ -11,6 +11,7 @@ import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.MeasurementInput
+import com.fitnessark.util.WidgetUpdater
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,7 @@ class CheckinViewModel(
     private val measurementRepo: MeasurementRepository,
     private val photoRepo: PhotoRepository,
     private val unitSystemFlow: Flow<UnitSystem>,
+    private val widgetUpdater: WidgetUpdater,
     date: Long
 ) : ViewModel() {
 
@@ -134,6 +136,7 @@ class CheckinViewModel(
                     )
                 )
                 if (s.photoUris.isNotEmpty()) photoRepo.savePhoto(s.date, s.photoUris)
+                widgetUpdater.refresh()
                 _uiState.update { it.copy(isSaving = false, saved = true) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, errorMessage = e.message) }

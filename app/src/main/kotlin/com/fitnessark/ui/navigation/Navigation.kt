@@ -35,7 +35,7 @@ val bottomNavScreens = listOf(
 )
 
 @Composable
-fun FitnessArkNavHost() {
+fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -77,7 +77,8 @@ fun FitnessArkNavHost() {
                 DashboardScreen(
                     onNavigateToCheckin  = { navController.navigate("checkin?date=${System.currentTimeMillis()}") },
                     onNavigateToProgress = { navController.navigate(Screen.Measurements.route) },
-                    onNavigateToPhotos   = { navController.navigate(Screen.Photos.route) }
+                    onNavigateToPhotos   = { navController.navigate(Screen.Photos.route) },
+                    openWeightDialogOnStart = openWeightDialogOnStart
                 )
             }
 

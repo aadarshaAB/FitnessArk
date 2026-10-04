@@ -15,9 +15,16 @@ import com.fitnessark.ui.theme.LocalUnitSystem
 import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        /** Set by the home-screen widget's "Log weight" button (F6) to open straight to that dialog. */
+        const val EXTRA_OPEN_WEIGHT_DIALOG = "open_weight_dialog"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val openWeightDialog = intent?.getBooleanExtra(EXTRA_OPEN_WEIGHT_DIALOG, false) ?: false
         setContent {
             val preferencesRepo = koinInject<PreferencesRepository>()
             val themeMode by preferencesRepo.themeMode.collectAsState(initial = ThemeMode.DARK)
@@ -29,7 +36,7 @@ class MainActivity : ComponentActivity() {
             val unitSystem by preferencesRepo.unitSystem.collectAsState(initial = UnitSystem.METRIC)
             FitnessArkTheme(darkTheme = isDarkTheme) {
                 CompositionLocalProvider(LocalUnitSystem provides unitSystem) {
-                    FitnessArkNavHost()
+                    FitnessArkNavHost(openWeightDialogOnStart = openWeightDialog)
                 }
             }
         }
