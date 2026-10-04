@@ -1,48 +1,48 @@
 package com.fitnessark.util
 
-import java.text.SimpleDateFormat
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.util.*
-import java.util.concurrent.TimeUnit
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 object DateUtils {
 
-    private val fullFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    private val shortFormat = SimpleDateFormat("MM/dd/yy", Locale.getDefault())
+    /**
+     * A pattern's formatter for the current default locale. DateTimeFormatter is immutable and
+     * thread-safe, so it is cached, but rebuilt if the device language changes while the app runs.
+     */
+    private class LocaleFormatter(private val pattern: String) {
+        @Volatile private var cached: Pair<Locale, DateTimeFormatter>? = null
 
-    fun formatDate(timestamp: Long): String = fullFormat.format(Date(timestamp))
+        fun get(): DateTimeFormatter {
+            val locale = Locale.getDefault()
+            cached?.let { if (it.first == locale) return it.second }
+            return DateTimeFormatter.ofPattern(pattern, locale).also { cached = locale to it }
+        }
+    }
 
-    fun formatDateShort(timestamp: Long): String = shortFormat.format(Date(timestamp))
+    private val fullFormat = LocaleFormatter("MMM dd, yyyy")
+    private val shortFormat = LocaleFormatter("MM/dd/yy")
+
+    private fun localDate(timestamp: Long): LocalDate =
+        Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+
+    fun formatDate(timestamp: Long): String = fullFormat.get().format(localDate(timestamp))
+
+    fun formatDateShort(timestamp: Long): String = shortFormat.get().format(localDate(timestamp))
 
     /** ISO local date (yyyy-MM-dd) of [timestamp] in the device's current time zone. */
-    fun localDateKey(timestamp: Long): String =
-        Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+    fun localDateKey(timestamp: Long): String = localDate(timestamp).toString()
 
-    fun getStartOfDay(timestamp: Long): Long {
-        val cal = Calendar.getInstance().apply {
-            timeInMillis = timestamp
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return cal.timeInMillis
-    }
+    fun getStartOfDay(timestamp: Long): Long =
+        localDate(timestamp).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    fun getEndOfDay(timestamp: Long): Long {
-        val cal = Calendar.getInstance().apply {
-            timeInMillis = timestamp
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }
-        return cal.timeInMillis
-    }
+    fun getEndOfDay(timestamp: Long): Long =
+        localDate(timestamp).plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
 
-    fun getDaysBetween(start: Long, end: Long): Int {
-        val diff = kotlin.math.abs(end - start)
-        return TimeUnit.MILLISECONDS.toDays(diff).toInt()
-    }
+    /** Whole calendar days between the days of [start] and [end] (order doesn't matter). */
+    fun getDaysBetween(start: Long, end: Long): Int =
+        kotlin.math.abs(ChronoUnit.DAYS.between(localDate(start), localDate(end))).toInt()
 }
