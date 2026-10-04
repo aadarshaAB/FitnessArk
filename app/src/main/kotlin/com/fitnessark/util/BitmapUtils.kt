@@ -5,9 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 
 object BitmapUtils {
+
+    private const val TAG = "BitmapUtils"
 
     private const val MAX_DIMENSION = 2048
 
@@ -19,9 +22,18 @@ object BitmapUtils {
     fun decodeUriToBitmap(context: Context, uri: Uri): Bitmap? {
         return try {
             val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, boundsOptions)
-            } ?: return null
+            val boundsStream = context.contentResolver.openInputStream(uri)
+            if (boundsStream == null) {
+                Log.e(TAG, "openInputStream returned null for $uri (bounds pass)")
+                return null
+            }
+            boundsStream.use { BitmapFactory.decodeStream(it, null, boundsOptions) }
+            if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+                Log.e(TAG, "Could not read image bounds for $uri " +
+                    "(outWidth=${boundsOptions.outWidth}, outHeight=${boundsOptions.outHeight}); " +
+                    "the file may not be fully written yet or isn't a valid image")
+                return null
+            }
 
             val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = false
@@ -30,7 +42,11 @@ object BitmapUtils {
 
             val bitmap = context.contentResolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, options)
-            } ?: return null
+            }
+            if (bitmap == null) {
+                Log.e(TAG, "decodeStream returned null for $uri on the full decode pass")
+                return null
+            }
 
             // Now check orientation using ExifInterface
             val orientation = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -71,7 +87,7 @@ object BitmapUtils {
             }
             rotatedBitmap
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to decode photo from $uri", e)
             null
         }
     }

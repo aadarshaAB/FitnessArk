@@ -135,9 +135,23 @@ class CheckinViewModel(
                         notes  = s.notes.ifEmpty { null }
                     )
                 )
-                if (s.photoUris.isNotEmpty()) photoRepo.savePhoto(s.date, s.photoUris)
+                val skipped = if (s.photoUris.isNotEmpty()) {
+                    photoRepo.savePhoto(s.date, s.photoUris)
+                } else emptySet()
                 widgetUpdater.refresh()
-                _uiState.update { it.copy(isSaving = false, saved = true) }
+                if (skipped.isNotEmpty()) {
+                    // Something still saved (the measurement, and any photo that did decode), but
+                    // tell the user rather than silently dropping a photo they thought was saved.
+                    val names = skipped.joinToString(", ") { angle -> angle.label }
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            errorMessage = "Saved, but the $names photo couldn't be read and was skipped. Try retaking it."
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isSaving = false, saved = true) }
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, errorMessage = e.message) }
             }

@@ -38,11 +38,13 @@ class PhotoRepository(
 
     /**
      * Saves the photos at [uris] into the entry for the day of [date], merging with that day's
-     * existing entry (see the bitmap overload). A photo that can't be decoded is skipped.
+     * existing entry (see the bitmap overload). Returns the angles that couldn't be decoded (and
+     * were therefore skipped) so the caller can tell the user, instead of failing silently.
      */
-    suspend fun savePhoto(date: Long, uris: Map<PhotoAngle, Uri>) {
+    suspend fun savePhoto(date: Long, uris: Map<PhotoAngle, Uri>): Set<PhotoAngle> {
         val bitmaps = decodeAll(uris)
         if (bitmaps.isNotEmpty()) savePhoto(PhotoEntity(date = date), bitmaps)
+        return uris.keys - bitmaps.keys
     }
 
     /** Positional convenience for [savePhoto]; a null angle is left as it was. */
