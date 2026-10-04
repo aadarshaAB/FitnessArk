@@ -1,9 +1,25 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// Release signing credentials, read from local.properties (gitignored, same as sdk.dir) rather
+// than committed — never present in CI, so assembleRelease there just produces an unsigned APK
+// instead of failing the build.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")
+val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+    .all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.fitnessark"
@@ -19,6 +35,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -26,6 +53,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 
