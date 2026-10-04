@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Fitness Ark — a local-first Android fitness tracking app (Kotlin + Jetpack Compose). Daily weight/body-measurement check-ins, in-app progress photos (front/side/back) with a before/after slider, MPAndroidChart progress charts, streak tracking, and full ZIP export/import via Android SAF. Single Gradle module (`:app`), namespace `com.fitnessark`, minSdk 29 / targetSdk & compileSdk 35, Kotlin/JVM target 17.
 
-**Getting context fast:** read this file (how it's built and the working rules), then `PROGRESS.md` (everything done since the start, how it was verified, what's next), then `ENHANCEMENT_PLAN.md` (the item-by-item plan and the reasons). Keep all three up to date when work lands.
+**Getting context fast:** read this file (how it's built and the working rules), then `PROGRESS.md` (everything done since the start, how it was verified, what's next), then `ENHANCEMENT_PLAN.md` (the item-by-item plan and the reasons). Keep all three up to date when work lands. `PROGRESS.md` and `ENHANCEMENT_PLAN.md` are local working notes only — gitignored, not pushed to GitHub (kept out of the public repo on purpose) — so they exist in this working copy but not in a fresh clone.
 
 ## Commands
 

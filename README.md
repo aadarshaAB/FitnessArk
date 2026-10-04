@@ -1,67 +1,82 @@
 # Fitness Ark 🚢📈
 
-A local-first Android fitness tracking app built with Kotlin + Jetpack Compose.
+A local-first Android fitness tracking app built with Kotlin + Jetpack Compose. Daily weight/body-measurement check-ins, in-app progress photos (front/side/back) with a before/after slider, charts, streak tracking, and full ZIP export/import. No account, no server, no network access — everything stays on the device.
+
+## Download
+
+Prebuilt signed APKs are published on the [Releases page](../../releases). Download the latest `.apk` and sideload it (Android will prompt to allow installs from that source if it's not already enabled). Requires Android 10 (API 29) or newer.
 
 ## Features
-- **Daily check-ins** — weight + 5 body measurements + notes
-- **Camera capture** — take front/side/back photos directly in-app (or pick from gallery)
-- **Progress charts** — MPAndroidChart line charts with 7d/30d/90d/All ranges
-- **Before/After slider** — drag to compare any two progress photos
-- **Streak tracking** — consecutive daily logging streak
-- **Export/Import** — full ZIP backup via Android SAF
-- **Dark/Light theme** — defaults to dark
 
-## Tech Stack
-- Kotlin 100% · Jetpack Compose + Material 3 · Room · Koin · Coil · MPAndroidChart
+- **Daily check-ins** — weight + 5 body measurements + notes, logged for today or any past day
+- **In-app camera** — front lens + a 5-second timer by default (shutter button skips the wait); switch to the rear lens if needed. Gallery picking is also available
+- **Before/After comparison** — pose picker (front/side/back), slider or side-by-side layout
+- **Progress charts** — 7-day trailing moving average overlay, weekly average on the dashboard
+- **Streak tracking** — consecutive daily logging streak, shown on the dashboard and a home-screen widget
+- **Daily reminder** — optional notification at a time you choose, skipped automatically once you've already logged that day
+- **Metric/Imperial** — kg/lb, cm/in; data is always stored metric
+- **Dashboard photo privacy** — the latest progress photo is blurred by default, with a tap-to-reveal toggle
+- **Export/Import** — full ZIP backup via Android's Storage Access Framework, with Merge/Replace on import
+- **Dark/Light/System theme**
 
-## Setup
+## Tech stack
 
-### 1. Add gradle-wrapper.jar
-The `gradle-wrapper.jar` binary cannot be included in source distributions.  
-Run this once after cloning:
+Kotlin · Jetpack Compose + Material 3 · Room · Koin · Coil · MPAndroidChart · CameraX · WorkManager · Jetpack Glance (widget) · DataStore
+
+Single Gradle module (`:app`), namespace `com.fitnessark`, minSdk 29 / targetSdk & compileSdk 35, Kotlin/JVM target 17.
+
+## Building from source
 
 ```bash
-# Option A — Android Studio handles it automatically on first sync
-# Option B — if using CLI:
-gradle wrapper --gradle-version=8.9
+git clone https://github.com/aadarshaAB/FitnessArk.git
+cd FitnessArk
+# Point sdk.dir at your Android SDK in local.properties, e.g.:
+#   sdk.dir=/path/to/Android/Sdk
+./gradlew assembleDebug      # or installDebug with a device/emulator connected
 ```
 
-Or manually download from:
-https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar  
-→ place at `gradle/wrapper/gradle-wrapper.jar`
+`gradle/wrapper/gradle-wrapper.jar` is committed, so `./gradlew` (or `gradlew.bat` on Windows) works directly after cloning — no manual wrapper setup needed.
 
-### 2. Open in Android Studio
-1. **File → Open** → select the `FitnessArk` folder
-2. Android Studio will prompt to sync Gradle — click **Sync Now**
-3. If `gradle-wrapper.jar` is missing, Studio will offer to download it automatically
+```bash
+./gradlew test                # unit tests (JVM, Robolectric)
+./gradlew lint                # Android lint
+```
 
-### 3. Run
-- Connect an Android 10+ device (API 29+) or start an emulator
-- Click **Run ▶**
+A release build (`./gradlew assembleRelease`) needs its own signing config (`RELEASE_STORE_FILE`/`RELEASE_STORE_PASSWORD`/`RELEASE_KEY_ALIAS`/`RELEASE_KEY_PASSWORD` in `local.properties`); without one it produces an unsigned APK.
 
 ## Permissions
+
 | Permission | Purpose |
 |---|---|
-| `CAMERA` | Take progress photos in-app |
-| `READ_MEDIA_IMAGES` | Pick photos from gallery (Android 13+) |
-| `READ_EXTERNAL_STORAGE` | Pick photos from gallery (Android 10–12) |
+| `CAMERA` | In-app camera for progress photos, requested at runtime the first time it's used |
+| `POST_NOTIFICATIONS` (Android 13+) | Daily check-in reminder, requested only when you turn it on |
 
-## Project Structure
+Gallery photo picking uses Android's system photo picker, which needs no permission.
+
+## Project structure
+
 ```
 app/src/main/kotlin/com/fitnessark/
 ├── data/
 │   ├── local/
 │   │   ├── dao/          # Room DAOs
 │   │   └── entity/       # Room entities + TypeConverters
-│   └── repository/       # MeasurementRepository, PhotoRepository
-├── di/                   # Koin AppModule
+│   ├── model/            # PhotoAngle, Metric, UnitSystem
+│   └── repository/       # MeasurementRepository, PhotoRepository, BackupRepository, PreferencesRepository
+├── di/                   # Koin AppModule (the entire DI graph)
 ├── ui/
-│   ├── checkin/          # Full check-in screen (camera + measurements)
+│   ├── camera/           # In-app camera (CameraX)
+│   ├── checkin/          # Full check-in screen + ViewModel
 │   ├── dashboard/        # Home screen
 │   ├── measurements/     # Progress charts + table
 │   ├── navigation/       # NavHost + bottom nav
-│   ├── photos/           # Photo timeline + before/after slider
-│   ├── settings/         # Export/Import/Theme
-│   └── theme/            # Color, Typography, Theme
-└── util/                 # CameraUtils, DateUtils, FileUtils, ImageCompressor, ZipUtils
+│   ├── photos/           # Photo timeline + before/after comparison
+│   ├── settings/         # Export/Import/Theme/Reminder
+│   ├── theme/            # Color, Typography, Theme
+│   └── widget/           # Home-screen widget (Jetpack Glance)
+└── util/                 # CameraUtils, DateUtils, FileUtils, ImageCompressor, ZipUtils, ReminderScheduler/Worker
 ```
+
+## License
+
+Personal project, source available for reference. No license has been chosen yet.

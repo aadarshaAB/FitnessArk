@@ -25,3 +25,8 @@ local.properties
 # Log/OS files
 *.log
 Thumbs.db
+
+# Working notes — kept locally, not published
+ENHANCEMENT_PLAN.md
+PROGRESS.md
+.claude/
