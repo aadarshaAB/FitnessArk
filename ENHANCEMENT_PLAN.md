@@ -117,7 +117,7 @@ Ordered by value to you versus effort.
 3. ~~**S1 + S2:** database migration safety net and tests.~~ Done.
 4. ~~**Q8–Q19:** remaining quick wins.~~ Done (optionally Q20, Q21).
 5. ~~**S3 + S4**, then S5, S6, S8, S7, S9.~~ Done.
-6. ~~**Features F1 → F6** in table order.~~ Done, reviewed, committed, pushed (F5/F6 also verified on a phone; see `PROGRESS.md`). ~~Q20~~ done, found live and fixed. **Next:** check CI, decide on Q21, then F7 onward (F7 needs a CameraX go-ahead first).
+6. ~~**Features F1 → F6** in table order.~~ Done, reviewed, committed, pushed (F5/F6 also verified on a phone; see `PROGRESS.md`). ~~Q20~~ done, found live and fixed. ~~Check CI~~ done, all green. **Next:** decide on Q21, then F7 onward (F7 needs a CameraX go-ahead first).
 
 ## Main files affected
 - **Build and manifest:** `app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, `gradle/libs.versions.toml`, `gradle/wrapper/`

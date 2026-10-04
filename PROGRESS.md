@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed; GitHub Actions CI checked and passing). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -19,9 +19,9 @@ Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verif
 | Q22 | **Done** with F3 |
 | Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed, pushed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F11 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
-| GitHub Actions CI | Pushed, **not seen to pass yet** |
+| GitHub Actions CI | **Checked, passing** — every real push since S9 has succeeded (see "Verification") |
 | Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else is committed and pushed. |
-| Not pushed | Nothing — local `main` matches `origin/main` at `fb9950a`. |
+| Not pushed | Nothing — local `main` matches `origin/main`. |
 
 ## Full history (oldest first)
 
@@ -92,7 +92,7 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 | Code-reviewer agent on the S6–S9 diff | Approve, no blocking issues | One nitpick: `dialogTargetSlot?.fileKey` in `CheckinScreen.kt` has no explicit null check, but the slot is always set before the dialog opens. Read-through review, not a device test. |
 | `installDebug` on the user's Pixel 9a (wireless adb) | Installed OK | Updated in place; existing data kept. |
 | Launch on the phone | **Inconclusive** | The app process started and no crash showed in the first log check, but the follow-up screenshot showed the phone's home screen, not the app. I was checking whether the phone was locked or the app was not in the foreground when that was interrupted. |
-| GitHub Actions run | **Not checked** | Pushed; nobody has looked at the run. |
+| GitHub Actions runs | **Checked 2026-10-04, all passing** | See "CI status" below. |
 
 **Not verified on a device:** Merge/Replace dialog, check-in with photos, retake/remove a photo angle, export then import in both modes, the measurements chart, theme persistence, the Tier 1 UI changes (Undo snackbar, neutral colours, input errors), switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle. Compose screens have no automated tests. Not unit-tested: `PreferencesRepository`, the camera flow, `SettingsViewModel` export/import wiring.
 
@@ -127,16 +127,21 @@ The user hit this while using the app normally (not a planned test): taking a ch
 
 Root cause is believed to be a brief race where the camera-captured file isn't fully readable by the content resolver the instant control returns to the app — intermittent, not reproducible on every attempt (Side and Back succeeded on the same multi-photo test where Front failed). The fix doesn't eliminate the race (that's outside the app's control — it's the camera app's write timing), but it stops it from being silent, and keeps the user on the screen to retry instead of losing the attempt.
 
+### CI status — checked 2026-10-04
+
+Every GitHub Actions run since S9 added the workflow has **passed**: `assembleDebug lintDebug testDebugUnitTest` succeeds on each push to `main`, including on the latest doc-update push. One run (the Q20 fix commit `fb9950a`) shows as "cancelled" — that's normal GitHub Actions concurrency behaviour (a newer push superseded it before it finished, "Canceling since a higher priority waiting request for ci-refs/heads/main exists"), not a failure; the next push's run covers the same code and passed.
+
+Checked via the `gh` CLI, downloaded and authenticated in this session (installed to the job scratchpad, not committed to the repo; re-install if a future session needs it again). Two harmless deprecation warnings appear in the workflow logs, worth a look eventually but not urgent: `actions/setup-java@v4` is deprecated in favor of `@v5`, and GitHub's `ubuntu-latest` runner label migrates to Ubuntu 26 starting 2026-10-19 (the workflow doesn't pin a version, so it will pick that up automatically — worth re-checking CI after that date in case anything on the newer image behaves differently).
+
 ## Open items and next steps
 
-0. **F1–F6 and Q20 are done**, reviewed, committed, and pushed. Local `main` matches `origin/main` at `fb9950a`.
+0. **F1–F6 and Q20 are done**, reviewed, committed, and pushed. Local `main` matches `origin/main`. ~~Check the GitHub Actions run~~ done — all green, see "CI status".
 
-1. Look at the GitHub Actions run; fix the runner SDK or `gradlew` setup if it fails (still not checked — see "Verification").
-2. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes).
-3. Decide on the remaining follow-up:
+1. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes).
+2. Decide on the remaining follow-up:
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
-4. Tier 3 features: F1–F6 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
-5. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`. Possibly also: a retry-with-backoff in `BitmapUtils.decodeUriToBitmap` if the Q20 decode race recurs often enough to be worth smoothing over rather than just reporting.
+3. Tier 3 features: F1–F6 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
+4. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`, the two CI deprecation warnings (setup-java@v5, Ubuntu 26 migration 2026-10-19). Possibly also: a retry-with-backoff in `BitmapUtils.decodeUriToBitmap` if the Q20 decode race recurs often enough to be worth smoothing over rather than just reporting.
 
 ## Notes and gotchas
 
@@ -150,3 +155,4 @@ Root cause is believed to be a brief race where the camera-captured file isn't f
 - No `sqlite3` binary is available on the device or in this dev environment (checked both). To inspect the DB directly: `MSYS_NO_PATHCONV=1 adb shell run-as com.fitnessark cat /data/data/com.fitnessark/databases/fitness_ark.db-wal > local_file`, then grep the raw bytes as text (`grep -a -oE "pattern"`) for recognizable strings (dates, file paths) — crude but doesn't need a SQLite reader, and the WAL file often has the most recent uncommitted/recent writes even when the main `.db` file doesn't. `MSYS_NO_PATHCONV=1` is required in Git Bash or the absolute device path gets mangled into a Windows path.
 - `e.printStackTrace()` in Kotlin writes to `System.err`, which is easy to lose in a noisy `adb logcat` dump unless you specifically grep for `System.err`; prefer `Log.e(TAG, message, e)` so it's grep-able by tag and shows up with the rest of the app's logs.
 - A function that returns `null`/empty on failure without any logging (not even a caught exception) is effectively unobservable from outside the device — `BitmapUtils.decodeUriToBitmap` had two such silent paths before the Q20 fix. When a symptom is "nothing happens, no error," check for this pattern first before assuming the issue is higher up the call stack.
+- No `gh` CLI is preinstalled in this dev environment, and the repo returns "Not Found" to an unauthenticated API call (likely private). To check CI from here: download the latest Windows release zip from `cli/cli`'s GitHub releases, `Expand-Archive` it (PowerShell) into a scratch folder, then have the user run `gh auth login` themselves via the `!` prefix (it's an interactive device-code/browser flow, can't be scripted). After that, `gh run list` / `gh run view <id>` work normally. Not committed to the repo — a fresh session needs to redo this once if it wants `gh` again.
