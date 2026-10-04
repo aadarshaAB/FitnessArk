@@ -17,11 +17,11 @@ Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verif
 | Q20 | **Done**, committed, pushed (`fb9950a`) — fixed live after the user hit it; see "Full history" and "Verification" |
 | Q21 | Not started, awaiting a decision |
 | Q22 | **Done** with F3 |
-| Tier 3 features F1–F11 | **F1–F6, F10, F11 done**, reviewed, committed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F9 not started |
+| Tier 3 features | **F1–F6, F10, F11 done**, reviewed, committed, pushed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F9 dropped (2026-10-04, see `ENHANCEMENT_PLAN.md`) |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | **Checked, passing** — every real push since S9 has succeeded (see "Verification") |
-| Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else is committed. |
-| Not pushed | F10 (`0fea14c`), its docs (`7934c52`, `9d83e61`), F11 (`6107aea`), and this docs update — local `main` is ahead of `origin/main`. |
+| Uncommitted | `.claude/` only (untracked, intentionally left out). This docs update about to be committed. |
+| Not pushed | Nothing once this docs update is committed and pushed — F10, F11 and their docs (`0fea14c`, `7934c52`, `9d83e61`, `6107aea`, `f807656`) are already on `origin/main`. |
 
 ## Full history (oldest first)
 
@@ -142,7 +142,7 @@ Checked via the `gh` CLI, downloaded and authenticated in this session (installe
 1. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes), and now **F10** (blur-by-default, eye toggle, tap-to-reveal-then-navigate) and **F11** (in-app camera: front lens default, 5s timer/tap-to-skip, camera-switch, both the check-in and retake flows, CAMERA permission grant/deny).
 2. Decide on the remaining follow-up:
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
-3. Tier 3 features: F1–F6, F10, F11 done — CameraX is now a dependency (added for F11 with approval), so **F7** (ghost-overlay camera) can reuse the same `InAppCameraScreen` foundation if picked back up; it's still commented out of `ENHANCEMENT_PLAN.md` pending a decision, as is F9 (optional Health Connect). Remaining: F7, F8 timelapse, F9.
+3. Tier 3 features: F1–F6, F10, F11 done. **F7–F9 dropped** (2026-10-04) — ghost-overlay camera, progress timelapse, and optional Health Connect sync are not going to be built; removed from `ENHANCEMENT_PLAN.md`'s table. Nothing left in Tier 3 except Q21 below.
 4. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`, the two CI deprecation warnings (setup-java@v5, Ubuntu 26 migration 2026-10-19). Possibly also: a retry-with-backoff in `BitmapUtils.decodeUriToBitmap` if the Q20 decode race recurs often enough to be worth smoothing over rather than just reporting.
 
 ## Notes and gotchas
