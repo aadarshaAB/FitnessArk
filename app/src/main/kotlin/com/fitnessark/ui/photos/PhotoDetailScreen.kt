@@ -49,9 +49,10 @@ fun PhotoDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Which angle is being retaken ("front" | "side" | "back" | null)
-    var retakeAngle     by remember { mutableStateOf<String?>(null) }
-    var showSourceDialog by remember { mutableStateOf(false) }
-    var cameraUri       by remember { mutableStateOf<Uri?>(null) }
+    // rememberSaveable: the camera app often gets us killed in the background; these must survive that
+    var retakeAngle     by rememberSaveable { mutableStateOf<String?>(null) }
+    var showSourceDialog by rememberSaveable { mutableStateOf(false) }
+    var cameraUri       by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     // ── Camera launcher ──────────────────────────────────────────────────────
     val cameraLauncher = rememberLauncherForActivityResult(

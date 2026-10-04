@@ -218,8 +218,9 @@ fun CheckinScreen(
     }
 
     // ── Camera URIs (one per pose, created fresh each time camera opens) ──
-    var pendingCameraSlot by remember { mutableStateOf<String?>(null) }
-    var currentCameraUri by remember { mutableStateOf<Uri?>(null) }
+    // rememberSaveable: the camera app often gets us killed in the background; these must survive that
+    var pendingCameraSlot by rememberSaveable { mutableStateOf<String?>(null) }
+    var currentCameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -241,8 +242,8 @@ fun CheckinScreen(
     }
 
     // Photo source dialog state
-    var showSourceDialog by remember { mutableStateOf(false) }
-    var dialogTargetSlot by remember { mutableStateOf("") }
+    var showSourceDialog by rememberSaveable { mutableStateOf(false) }
+    var dialogTargetSlot by rememberSaveable { mutableStateOf("") }
 
     fun openSource(slot: String) {
         dialogTargetSlot = slot
