@@ -23,6 +23,8 @@ Lint needs network access the first time (it downloads its tooling), so don't pa
 
 To run a single test class/method with Gradle: `./gradlew testDebugUnitTest --tests "com.fitnessark.SomeTest"`.
 
+Tests are JVM unit tests run with Robolectric (no emulator needed), under `app/src/test/kotlin`; `TestSupport` has the in-memory Room DB and date helpers. Robolectric downloads its Android jars on first run, so that needs network once. There are no instrumented tests, so `connectedAndroidTest` has nothing to run. Tests run against a plain `Application` (`robolectric.properties`), not `FitnessArkApp`, so Koin is not started.
+
 `gradle/wrapper/gradle-wrapper.jar` is committed, so `./gradlew` works from the command line (set `JAVA_HOME` to a JDK 17+, e.g. Android Studio's bundled `jbr`). If it ever goes missing, run `gradle wrapper --gradle-version=8.9`.
 
 ## Architecture
@@ -30,7 +32,7 @@ To run a single test class/method with Gradle: `./gradlew testDebugUnitTest --te
 MVVM with a single Koin DI module, one Room database, and a bottom-nav Compose NavHost — no other architectural layers (no use-case/interactor layer; ViewModels call repositories directly).
 
 - **DI (`di/AppModule.kt`)** — the entire dependency graph (DB, DAOs, utils, repositories, ViewModels) is declared in one Koin module (`appModule`), installed in `FitnessArkApp.onCreate()`. When adding a repository, util, or ViewModel, register it here.
-- **Data layer** — `data/local/entity` holds Room entities (`MeasurementEntity`, `PhotoEntity`) and `Converters` (Date↔Long, and float rounding to 2 decimals applied via a `@TypeConverter`, which is a deliberate persistence-layer rounding rule — don't "fix" values that look like they should round differently at read time). `data/local/dao` holds the Room DAOs. `data/local/AppDatabase` is the single Room DB (`fitness_ark.db`, currently version 1 with `fallbackToDestructiveMigration()` — bump the version and add a real migration instead of relying on destructive fallback once the app has real user data). `data/repository` wraps DAOs in `MeasurementRepository` / `PhotoRepository`; repositories expose `Flow` for observed lists and `suspend fun` for one-shot reads/writes.
+- **Data layer** — `data/local/entity` holds Room entities (`MeasurementEntity`, `PhotoEntity`) and `Converters` (Date↔Long, and float rounding to 2 decimals applied via a `@TypeConverter`, which is a deliberate persistence-layer rounding rule — don't "fix" values that look like they should round differently at read time). `data/local/dao` holds the Room DAOs. `data/local/AppDatabase` is the single Room DB (`fitness_ark.db`, currently version 1, `exportSchema = true` with schemas committed under `app/schemas/`). There is deliberately no destructive fallback: to change an entity, bump `version`, add a `Migration` to `AppDatabase.MIGRATIONS`, and add a data-preserving test in `AppDatabaseMigrationTest`. `data/repository` wraps DAOs in `MeasurementRepository` / `PhotoRepository`; repositories expose `Flow` for observed lists and `suspend fun` for one-shot reads/writes.
 - **Photo storage** — photos are not stored as blobs in Room. `PhotoRepository` compresses bitmaps via `ImageCompressor`, writes front/side/back/thumbnail JPEGs to internal storage (`util/ImageCompressor`, `util/FileUtils`), and stores only file paths in `PhotoEntity`. Only one photo entry exists per calendar day — `PhotoRepository.savePhoto` merges into that day's existing entry (angles not passed in are kept; a replaced angle's old file is deleted). `deletePhotoAngle` removes one angle's file and rebuilds the thumbnail from the next remaining angle. Camera captures go to a temp file in the cache dir (`util/CameraUtils`), which sweeps ones older than a day.
 - **UI** — one package per feature under `ui/` (`checkin`, `dashboard`, `measurements`, `photos`, `settings`, plus shared `theme`), each typically a `XScreen.kt` (Compose) + `XViewModel.kt` (StateFlow-based `UiState` data class, updated via `MutableStateFlow.update {}`). `ui/navigation/Navigation.kt` defines the `Screen` sealed class / routes and the single `NavHost`; the bottom nav bar shows only for the four top-level `Screen` routes, not for detail routes like `checkin?date={date}` or `photo/{id}`.
 - **ViewModel args** — most ViewModels take only injected dependencies via Koin `get()`; `CheckinViewModel` additionally takes a runtime `date` param via Koin's `params.get()` (see `AppModule.kt`), because check-in can be opened either for "today" or for a specific past date from the photo/measurement history.
@@ -46,10 +48,9 @@ None. Photos are taken via the system camera app (`ActivityResultContracts.TakeP
 
 ## Known Issues / Tech Debt
 
-- No automated tests exist yet (no unit or instrumented test sources in the project).
+- Test coverage is a start, not complete: 42 JVM tests cover streak, check-in saving, photo merging/deletion, backup round-trip + zip-slip, chart labels, dashboard change, input validation and DB migrations. Not covered: UI/Compose screens, `PreferencesRepository`, camera flow, `SettingsViewModel` export/import wiring.
 - `CheckinViewModel` keeps the photo `Uri`s you've picked in memory only; a full process kill while the form is open loses them. (The camera result itself is preserved via `rememberSaveable`.)
 - In `CheckinViewModel.save()`, a photo that can't be decoded is skipped without telling the user.
-- `AppDatabase` is at schema version 1 with `fallbackToDestructiveMigration()` — any entity change will wipe local user data until a real migration path is added.
 
 ## Workflow Preferences
 
