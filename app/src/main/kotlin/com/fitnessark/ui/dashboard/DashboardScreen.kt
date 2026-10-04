@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -13,10 +14,13 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -111,9 +115,10 @@ fun DashboardScreen(
             // Latest Photo Preview
             if (state.latestPhoto != null) {
                 LatestPhotoCard(
-                    photoPath = state.latestPhoto!!.frontPhotoPath
-                        ?: state.latestPhoto!!.sidePhotoPath
-                        ?: state.latestPhoto!!.backPhotoPath,
+                    // The pre-generated thumbnail, not a full-res angle path: this preview is
+                    // blurred by default (see LatestPhotoCard), so there's no reason to decode
+                    // the larger image just to immediately obscure it.
+                    photoPath = state.latestPhoto!!.thumbnailPath,
                     date = state.latestPhoto!!.date,
                     onClick = onNavigateToPhotos
                 )
@@ -315,10 +320,21 @@ fun ProgressOverviewCard(weightChange: Float?, weeklyAverage: Float?, unitSystem
 
 @Composable
 fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
+    // Resets to blurred whenever the photo being shown changes, as well as on first composition
+    // — a body photo on the dashboard should never default to visible, in case someone else is
+    // the one opening the app. Keyed on photoPath (not just composition lifetime) so a newer
+    // check-in photo replacing this one re-blurs even if a future change keeps this composable
+    // alive across the swap instead of disposing it.
+    var revealed by remember(photoPath) { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable {
+                // While blurred, the first tap only reveals — it must not also hand the viewer
+                // the full, unblurred photo one screen away in the Photos tab. Only a tap after
+                // it's already revealed navigates there.
+                if (revealed) onClick() else revealed = true
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -326,11 +342,14 @@ fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
             if (photoPath != null) {
                 AsyncImage(
                     model = photoPath,
-                    contentDescription = "Latest photo",
+                    // Doesn't announce "Latest photo" while blurred: a screen reader shouldn't
+                    // confirm a body photo is there when sighted users can't make it out either.
+                    contentDescription = if (revealed) "Latest photo" else "Hidden photo, double tap to show",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(16.dp))
+                        .then(if (!revealed) Modifier.blur(24.dp) else Modifier)
                 )
                 // Date overlay
                 Box(
@@ -350,6 +369,22 @@ fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.align(Alignment.BottomStart)
+                    )
+                }
+                FilledIconButton(
+                    onClick = { revealed = !revealed },
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.5f),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (revealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (revealed) "Hide photo" else "Show photo"
                     )
                 }
             } else {
