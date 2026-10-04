@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1, F2 done; F3, F4 built, uncommitted). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1–F4 done; F5, F6 built, uncommitted). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -15,7 +15,7 @@ Last updated: 2026-10-04 (F1, F2 done; F3, F4 built, uncommitted). Read this wit
 | Tier 1 quick wins Q1–Q19 | **Done**, committed, pushed |
 | Tier 2 structural S1–S9 | **Done**, committed, pushed (last commit `02557e5`) |
 | Tier 1 follow-ups Q20, Q21, Q22 | Not started, awaiting a decision |
-| Tier 3 features F1–F10 | **F1 (units) and F2 (past days) done**, reviewed, committed, pushed, not yet checked on a phone; F3 (trend line) built, 94 tests pass, uncommitted, awaiting review; F4 (photo comparison) built, uncommitted; F5–F10 not started |
+| Tier 3 features F1–F10 | **F1–F4 done**, reviewed, committed, pushed, not yet checked on a phone; **F5 (daily reminder) and F6 (home-screen widget) built**, 103 tests pass, uncommitted, awaiting review; F7–F10 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | Pushed, **not seen to pass yet** |
 | Uncommitted | This file, plus the doc edits to `CLAUDE.md` and `ENHANCEMENT_PLAN.md` made after `02557e5`. `.claude/` is untracked and intentionally left out. |
@@ -80,18 +80,17 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 
 ## Open items and next steps
 
-0b. **F4 built, not committed** (96 tests, lint, assembleDebug pass): Before/After mode has a Front/Side/Back pose picker, a Slider / Side by side layout, and no delete buttons in the date pickers. Not checked on a phone.
-0a. **F3 built, not committed** (94 tests, lint, assembleDebug pass): dashed 7-day moving-average line on the Progress chart (chip "7-day avg", on by default), "7-day average" line on the dashboard card. Also fixed Q22 (chart x-offsets now count calendar days). Needs review, then an on-phone check.
+0c. **F5 + F6 built, not committed** (103 tests, lint, assembleDebug pass). F5: daily check-in reminder (`util/ReminderScheduler` + `ReminderWorker`, WorkManager), a time picker and on/off switch in Settings, `POST_NOTIFICATIONS` requested only when turned on, skipped automatically on a day already logged. F6: home-screen widget (Jetpack Glance) with streak, today's weight and a "Log weight" button that opens the app straight to the weight dialog. Two new dependencies (`work-runtime-ktx`, `glance-appwidget`), approved by the user beforehand. Needs review, then checking on a phone: granting/denying the notification permission, the reminder actually firing and being skipped once logged, placing the widget and its button, and that an app update doesn't drop the schedule.
 
-0. **F1 + F2 are done** (82 tests, lint and assembleDebug pass; code-reviewer agent approved after one fix: an empty unit in the dashboard weight dialog label). F1: `UnitSystem` setting (Settings > Units, DataStore), conversion on every screen, typed values converted back to metric. F2: tappable date badge + date picker on the check-in screen (no future days). Still needs an on-phone check (switch to Imperial and see every screen; log a past day).
+0a–0b. **F1–F4 are done**, reviewed, committed and pushed (commits `d3c609c`, `70c64f6`, `fcd309d`). Not yet checked on a phone: switching to Imperial, logging a past day, the trend line, and the Before/After pose picker / layout toggle.
 
 1. Finish the on-phone check (phone unlocked, app in the foreground) across the list above.
 2. Look at the first GitHub Actions run; fix the runner SDK or `gradlew` setup if it fails.
-3. Decide on the follow-ups (details in `ENHANCEMENT_PLAN.md`):
+3. Decide on the remaining follow-ups (details in `ENHANCEMENT_PLAN.md`):
    - **Q20** — tell the user when a picked photo can't be decoded on check-in save (currently skipped silently).
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
-   - **Q22** — chart x-offsets can be a day off in DST zones; one-line fix using `DateUtils.getDaysBetween` in `MeasurementsViewModel.getChartData()` (not an issue in Nepal).
-4. Tier 3 features, in order: **F1** metric/imperial (unblocked now), F2 log past days, F3 trend line, F4 better photo comparison, F5 daily reminder, F6 widget, F7 ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle. A second idea, "front camera + 5 s timer as take-photo default", was added to the plan labelled F7 too; renumber when Tier 3 starts.
+   - **Q22** — done (fixed with F3): `MeasurementsViewModel`'s chart x-offsets now use `DateUtils.getDaysBetween` instead of a millisecond truncation, so they no longer drift by a day across a DST change.
+4. Tier 3 features: F1–F6 done (F5, F6 awaiting review). Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
 5. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`.
 
 ## Notes and gotchas
