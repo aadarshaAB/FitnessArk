@@ -31,6 +31,8 @@ class ZipUtils {
         photos: List<PhotoEntity>
     ): File {
         val exportDir = File(context.filesDir, "exports").apply { mkdirs() }
+        // Backups left over from earlier exports (e.g. a failed or cancelled save) are dead weight.
+        exportDir.listFiles()?.forEach { it.delete() }
         val zipFile = File(exportDir, "fitness_ark_backup_${System.currentTimeMillis()}.zip")
 
         ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { zos ->

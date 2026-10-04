@@ -87,6 +87,10 @@ class SettingsViewModel(
                 _uiState.update { it.copy(message = "Export saved successfully") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Failed to save export: ${e.message}") }
+            } finally {
+                // The copy in the user's chosen location is the real backup; drop our temp one.
+                withContext(Dispatchers.IO) { zipFile.delete() }
+                refreshStats()
             }
         }
     }

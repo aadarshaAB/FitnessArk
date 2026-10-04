@@ -13,15 +13,25 @@ object CameraUtils {
      * the camera app can write to it without needing WRITE_EXTERNAL_STORAGE.
      */
     fun createTempCameraUri(context: Context, prefix: String = "camera_temp"): Uri {
-        val tempFile = File.createTempFile(
-            prefix,
-            ".jpg",
-            context.externalCacheDir ?: context.cacheDir
-        )
+        val dir = context.externalCacheDir ?: context.cacheDir
+        deleteStaleTempFiles(dir)
+        val tempFile = File.createTempFile(prefix, ".jpg", dir)
         return FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
             tempFile
         )
     }
+
+    /**
+     * Camera captures are copied into app storage once saved, so the temp originals are
+     * garbage. Only files older than a day go, so a capture still waiting to be saved survives.
+     */
+    private fun deleteStaleTempFiles(dir: File) {
+        val cutoff = System.currentTimeMillis() - STALE_AFTER_MS
+        dir.listFiles { f -> f.isFile && f.extension == "jpg" && f.lastModified() < cutoff }
+            ?.forEach { it.delete() }
+    }
+
+    private const val STALE_AFTER_MS = 24L * 60 * 60 * 1000
 }

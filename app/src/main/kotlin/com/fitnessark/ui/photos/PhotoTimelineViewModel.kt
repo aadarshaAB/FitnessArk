@@ -115,25 +115,6 @@ class PhotoTimelineViewModel(
      * If all three angles are gone after removal, deletes the whole entry.
      */
     fun deletePhotoAngle(photoId: String, angle: String) {
-        viewModelScope.launch {
-            val photos = _uiState.value.photos
-            val photo  = photos.find { it.id == photoId } ?: return@launch
-
-            val updated = when (angle) {
-                "front" -> photo.copy(frontPhotoPath = null)
-                "side"  -> photo.copy(sidePhotoPath  = null)
-                "back"  -> photo.copy(backPhotoPath  = null)
-                else    -> return@launch
-            }
-
-            // If no angles remain, delete the whole entry
-            if (updated.frontPhotoPath == null &&
-                updated.sidePhotoPath  == null &&
-                updated.backPhotoPath  == null) {
-                repo.deletePhoto(photoId)
-            } else {
-                repo.insertPhotoEntity(updated)
-            }
-        }
+        viewModelScope.launch { repo.deletePhotoAngle(photoId, angle) }
     }
 }

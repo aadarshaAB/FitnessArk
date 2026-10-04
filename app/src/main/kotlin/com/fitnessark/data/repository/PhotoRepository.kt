@@ -83,6 +83,53 @@ class PhotoRepository(
         dao.deletePhoto(id)
     }
 
+    /**
+     * Remove one angle ("front" | "side" | "back") from an entry, deleting its image file.
+     * The thumbnail is rebuilt from the next remaining angle if it came from the removed one;
+     * if no angle remains the whole entry (and its files) is deleted.
+     */
+    suspend fun deletePhotoAngle(photoId: String, angle: String) = withContext(Dispatchers.IO) {
+        val existing = dao.getPhotoById(photoId) ?: return@withContext
+
+        val removedPath = when (angle) {
+            "front" -> existing.frontPhotoPath
+            "side"  -> existing.sidePhotoPath
+            "back"  -> existing.backPhotoPath
+            else    -> return@withContext
+        }
+        val updated = when (angle) {
+            "front" -> existing.copy(frontPhotoPath = null)
+            "side"  -> existing.copy(sidePhotoPath  = null)
+            else    -> existing.copy(backPhotoPath  = null)
+        }
+
+        val remainingPath = updated.frontPhotoPath ?: updated.sidePhotoPath ?: updated.backPhotoPath
+        if (remainingPath == null) {
+            deletePhoto(photoId)
+            return@withContext
+        }
+
+        removedPath?.let { File(it).delete() }
+
+        // Thumbnail is derived from front, else side, else back — rebuild it from the new first angle.
+        val thumbSourceBefore = existing.frontPhotoPath ?: existing.sidePhotoPath ?: existing.backPhotoPath
+        val thumbnailPath = if (thumbSourceBefore == removedPath) {
+            val bitmap = imageCompressor.loadFromInternalStorage(remainingPath)
+            if (bitmap != null) {
+                val newPath = imageCompressor.saveToInternalStorage(
+                    context, imageCompressor.createThumbnail(bitmap, 200), "thumb_${photoId}.jpg"
+                )
+                existing.thumbnailPath?.takeIf { it != newPath }?.let { File(it).delete() }
+                newPath
+            } else {
+                existing.thumbnailPath?.let { File(it).delete() }
+                null
+            }
+        } else existing.thumbnailPath
+
+        dao.insertPhoto(updated.copy(thumbnailPath = thumbnailPath))
+    }
+
     fun getPhotoFile(path: String): File? = File(path).takeIf { it.exists() }
 
     suspend fun getLatestPhoto(): PhotoEntity? = dao.getLatestPhoto()
