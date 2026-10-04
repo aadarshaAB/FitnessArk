@@ -51,6 +51,8 @@ data class MeasurementsUiState(
     val showTableView:             Boolean                 = false,
     val isLoading:                 Boolean                 = true,
     val snackbarMessage:           String?                 = null,
+    // last deleted entry, kept so the snackbar's "Undo" can put it back
+    val recentlyDeleted:           MeasurementEntity?      = null,
     // dot-tap: measurement whose chart dot the user tapped
     val selectedDayMeasurement:    MeasurementEntity?      = null
 )
@@ -138,8 +140,19 @@ class MeasurementsViewModel(
 
     fun deleteMeasurement(id: String) {
         viewModelScope.launch {
+            val entry = _uiState.value.measurements.find { it.id == id }
             repo.deleteMeasurement(id)
-            _uiState.update { it.copy(snackbarMessage = "Measurement deleted") }
+            _uiState.update {
+                it.copy(snackbarMessage = "Measurement deleted", recentlyDeleted = entry)
+            }
+        }
+    }
+
+    fun undoDelete() {
+        val entry = _uiState.value.recentlyDeleted ?: return
+        viewModelScope.launch {
+            repo.saveMeasurement(entry)
+            _uiState.update { it.copy(recentlyDeleted = null) }
         }
     }
 
@@ -190,7 +203,7 @@ class MeasurementsViewModel(
         }
     }
 
-    fun clearSnackbar() = _uiState.update { it.copy(snackbarMessage = null) }
+    fun clearSnackbar() = _uiState.update { it.copy(snackbarMessage = null, recentlyDeleted = null) }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

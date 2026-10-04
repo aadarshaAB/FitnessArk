@@ -50,9 +50,15 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
     val state           by viewModel.uiState.collectAsState()
     val snackbarHost    = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.snackbarMessage) {
-        state.snackbarMessage?.let {
-            snackbarHost.showSnackbar(it)
+    // Keyed on the deleted entry too, so deleting a second entry replaces the first snackbar.
+    LaunchedEffect(state.snackbarMessage, state.recentlyDeleted?.id) {
+        state.snackbarMessage?.let { message ->
+            val result = snackbarHost.showSnackbar(
+                message     = message,
+                actionLabel = if (state.recentlyDeleted != null) "Undo" else null,
+                duration    = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete()
             viewModel.clearSnackbar()
         }
     }
