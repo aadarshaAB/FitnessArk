@@ -231,6 +231,7 @@ fun CheckinScreen(
             }
         }
         pendingCameraSlot = null
+        currentCameraUri = null
     }
 
     // Gallery fallback launchers (one per slot)

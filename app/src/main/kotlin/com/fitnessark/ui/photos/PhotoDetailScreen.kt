@@ -58,28 +58,36 @@ fun PhotoDetailScreen(
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success && cameraUri != null && retakeAngle != null) {
+        val angle = retakeAngle
+        val uri = cameraUri
+        if (success && uri != null && angle != null) {
             scope.launch {
-                val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, cameraUri!!) }
+                val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, uri) }
                 if (bitmap != null) {
-                    viewModel.retakePhotoAngle(context, photoId, retakeAngle!!, bitmap)
-                    snackbarHost.showSnackbar("${retakeAngle!!.replaceFirstChar { it.uppercase() }} photo updated")
+                    viewModel.retakePhotoAngle(context, photoId, angle, bitmap)
+                    snackbarHost.showSnackbar("${angle.replaceFirstChar { it.uppercase() }} photo updated")
+                } else {
+                    snackbarHost.showSnackbar("Couldn't read the photo. Please try again.")
                 }
             }
         }
         retakeAngle = null
+        cameraUri = null
     }
 
     // ── Gallery launcher ─────────────────────────────────────────────────────
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        if (uri != null && retakeAngle != null) {
+        val angle = retakeAngle
+        if (uri != null && angle != null) {
             scope.launch {
                 val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, uri) }
                 if (bitmap != null) {
-                    viewModel.retakePhotoAngle(context, photoId, retakeAngle!!, bitmap)
-                    snackbarHost.showSnackbar("${retakeAngle!!.replaceFirstChar { it.uppercase() }} photo updated")
+                    viewModel.retakePhotoAngle(context, photoId, angle, bitmap)
+                    snackbarHost.showSnackbar("${angle.replaceFirstChar { it.uppercase() }} photo updated")
+                } else {
+                    snackbarHost.showSnackbar("Couldn't read the photo. Please try again.")
                 }
             }
         }
