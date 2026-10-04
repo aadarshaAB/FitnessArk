@@ -24,7 +24,7 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(*AppDatabase.MIGRATIONS).build()
     }
 
     // DAOs

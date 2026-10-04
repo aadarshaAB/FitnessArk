@@ -42,11 +42,28 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric needs merged resources/manifest; also exposes test assets (Room schemas)
+            isIncludeAndroidResources = true
+        }
+    }
+
+    sourceSets {
+        // Exported Room schemas are read by MigrationTestHelper in unit tests (Robolectric uses the
+        // debug variant's merged assets). Debug-only, so they never ship in a release build.
+        getByName("debug").assets.srcDir("$projectDir/schemas")
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -87,4 +104,11 @@ dependencies {
     implementation(libs.androidx.exifinterface)
 
     debugImplementation(libs.androidx.ui.tooling)
+
+    // Tests
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.room.testing)
 }
