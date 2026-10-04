@@ -1,6 +1,8 @@
 package com.fitnessark.util
 
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -12,6 +14,10 @@ object DateUtils {
     fun formatDate(timestamp: Long): String = fullFormat.format(Date(timestamp))
 
     fun formatDateShort(timestamp: Long): String = shortFormat.format(Date(timestamp))
+
+    /** ISO local date (yyyy-MM-dd) of [timestamp] in the device's current time zone. */
+    fun localDateKey(timestamp: Long): String =
+        Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate().toString()
 
     fun getStartOfDay(timestamp: Long): Long {
         val cal = Calendar.getInstance().apply {

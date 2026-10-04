@@ -87,12 +87,12 @@ class CheckinViewModel(
             measurementRepo.getMeasurementForDay(date)?.let { m ->
                 _uiState.update { s ->
                     s.copy(
-                        weight = if (m.weight > 0) m.weight.toString() else "",
-                        chest  = if (m.chest  > 0) m.chest.toString()  else "",
-                        waist  = if (m.waist  > 0) m.waist.toString()  else "",
-                        hips   = if (m.hips   > 0) m.hips.toString()   else "",
-                        biceps = if (m.biceps > 0) m.biceps.toString() else "",
-                        thighs = if (m.thighs > 0) m.thighs.toString() else "",
+                        weight = m.weight?.toString() ?: "",
+                        chest  = m.chest?.toString()  ?: "",
+                        waist  = m.waist?.toString()  ?: "",
+                        hips   = m.hips?.toString()   ?: "",
+                        biceps = m.biceps?.toString() ?: "",
+                        thighs = m.thighs?.toString() ?: "",
                         notes  = m.notes ?: ""
                     )
                 }
@@ -146,17 +146,16 @@ class CheckinViewModel(
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
                 val s = _uiState.value
-                val existingId = measurementRepo.getMeasurementForDay(date)?.id
+                // The repository keeps one row per day, reusing that day's existing id.
                 measurementRepo.saveMeasurement(
                     MeasurementEntity(
-                        id     = existingId ?: java.util.UUID.randomUUID().toString(),
                         date   = date,
-                        weight = MeasurementInput.parse(s.weight) ?: 0f,
-                        chest  = MeasurementInput.parse(s.chest)  ?: 0f,
-                        waist  = MeasurementInput.parse(s.waist)  ?: 0f,
-                        hips   = MeasurementInput.parse(s.hips)   ?: 0f,
-                        biceps = MeasurementInput.parse(s.biceps) ?: 0f,
-                        thighs = MeasurementInput.parse(s.thighs) ?: 0f,
+                        weight = MeasurementInput.parse(s.weight),
+                        chest  = MeasurementInput.parse(s.chest),
+                        waist  = MeasurementInput.parse(s.waist),
+                        hips   = MeasurementInput.parse(s.hips),
+                        biceps = MeasurementInput.parse(s.biceps),
+                        thighs = MeasurementInput.parse(s.thighs),
                         notes  = s.notes.ifEmpty { null }
                     )
                 )

@@ -67,7 +67,7 @@ class MeasurementsViewModelTest {
     }
 
     @Test fun chart_ignores_entries_where_the_metric_was_left_blank() = runBlocking {
-        repo.saveMeasurement(MeasurementEntity(date = noon(3), weight = 70f, waist = 0f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(3), weight = 70f))
         repo.saveMeasurement(MeasurementEntity(date = noon(2), weight = 69f, waist = 80f))
         val vm = viewModel()
         vm.uiState.await { it.measurements.size == 2 }

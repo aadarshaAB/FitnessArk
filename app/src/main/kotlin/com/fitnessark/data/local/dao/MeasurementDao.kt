@@ -16,8 +16,8 @@ interface MeasurementDao {
     @Query("SELECT * FROM measurements ORDER BY date DESC LIMIT 1")
     suspend fun getLatestMeasurement(): MeasurementEntity?
 
-    @Query("SELECT * FROM measurements WHERE date BETWEEN :startOfDay AND :endOfDay ORDER BY date DESC LIMIT 1")
-    suspend fun getMeasurementForDay(startOfDay: Long, endOfDay: Long): MeasurementEntity?
+    @Query("SELECT * FROM measurements WHERE localDate = :localDate LIMIT 1")
+    suspend fun getMeasurementByLocalDate(localDate: String): MeasurementEntity?
 
     @Query("SELECT COUNT(*) FROM measurements")
     suspend fun getMeasurementCount(): Int

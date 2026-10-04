@@ -25,6 +25,10 @@ class ZipUtils {
         name != "." && name != ".." &&
             !name.contains("/") && !name.contains("\\")
 
+    /** A measurement value, or null if absent/null — or 0, which version-1 backups used for "not logged". */
+    private fun JSONObject.loggedValue(key: String): Float? =
+        if (isNull(key)) null else getDouble(key).toFloat().takeIf { it > 0f }
+
     fun exportData(
         context: Context,
         measurements: List<MeasurementEntity>,
@@ -42,12 +46,12 @@ class ZipUtils {
                     put(JSONObject().apply {
                         put("id", m.id)
                         put("date", m.date)
-                        put("weight", m.weight)
-                        put("chest", m.chest)
-                        put("waist", m.waist)
-                        put("hips", m.hips)
-                        put("biceps", m.biceps)
-                        put("thighs", m.thighs)
+                        put("weight", m.weight ?: JSONObject.NULL)
+                        put("chest", m.chest ?: JSONObject.NULL)
+                        put("waist", m.waist ?: JSONObject.NULL)
+                        put("hips", m.hips ?: JSONObject.NULL)
+                        put("biceps", m.biceps ?: JSONObject.NULL)
+                        put("thighs", m.thighs ?: JSONObject.NULL)
                         put("notes", m.notes ?: "")
                     })
                 }
@@ -68,7 +72,7 @@ class ZipUtils {
                 put("measurements", measurementsJson)
                 put("photos", photosJson)
                 put("exportedAt", System.currentTimeMillis())
-                put("version", 1)
+                put("version", 2)   // 2: blank measurements are null (1 used 0)
             }
 
             zos.putNextEntry(ZipEntry("data.json"))
@@ -115,12 +119,12 @@ class ZipUtils {
                                     MeasurementEntity(
                                         id = obj.getString("id"),
                                         date = obj.getLong("date"),
-                                        weight = obj.getDouble("weight").toFloat(),
-                                        chest = obj.getDouble("chest").toFloat(),
-                                        waist = obj.getDouble("waist").toFloat(),
-                                        hips = obj.getDouble("hips").toFloat(),
-                                        biceps = obj.getDouble("biceps").toFloat(),
-                                        thighs = obj.getDouble("thighs").toFloat(),
+                                        weight = obj.loggedValue("weight"),
+                                        chest = obj.loggedValue("chest"),
+                                        waist = obj.loggedValue("waist"),
+                                        hips = obj.loggedValue("hips"),
+                                        biceps = obj.loggedValue("biceps"),
+                                        thighs = obj.loggedValue("thighs"),
                                         notes = obj.getString("notes").ifEmpty { null }
                                     )
                                 )

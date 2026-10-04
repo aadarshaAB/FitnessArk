@@ -13,20 +13,29 @@ class MeasurementRepository(private val dao: MeasurementDao) {
     suspend fun getMeasurementsBetween(startDate: Long, endDate: Long): List<MeasurementEntity> =
         dao.getMeasurementsBetween(startDate, endDate)
 
-    suspend fun saveMeasurement(measurement: MeasurementEntity) =
-        dao.insertMeasurement(measurement)
+    /**
+     * Saves [measurement] as the entry for its calendar day: if that day already has a row, that
+     * row is replaced (keeping its id) instead of a second one being added.
+     */
+    suspend fun saveMeasurement(measurement: MeasurementEntity) {
+        val day = DateUtils.localDateKey(measurement.date)
+        val existing = dao.getMeasurementByLocalDate(day)
+        dao.insertMeasurement(measurement.copy(id = existing?.id ?: measurement.id, localDate = day))
+    }
 
     suspend fun deleteMeasurement(id: String) = dao.deleteMeasurement(id)
 
     suspend fun getLatestMeasurement(): MeasurementEntity? = dao.getLatestMeasurement()
 
     suspend fun getMeasurementForDay(date: Long): MeasurementEntity? =
-        dao.getMeasurementForDay(DateUtils.getStartOfDay(date), DateUtils.getEndOfDay(date))
+        dao.getMeasurementByLocalDate(DateUtils.localDateKey(date))
 
     suspend fun getMeasurementCount(): Int = dao.getMeasurementCount()
 
-    suspend fun calculateStreak(): Int {
-        val measurements = dao.getAllMeasurementsList()
+    suspend fun calculateStreak(): Int = streakOf(dao.getAllMeasurementsList())
+
+    /** Consecutive-day streak ending today (or yesterday, if today isn't logged yet). */
+    fun streakOf(measurements: List<MeasurementEntity>): Int {
         if (measurements.isEmpty()) return 0
 
         val today = DateUtils.getStartOfDay(System.currentTimeMillis())

@@ -65,7 +65,7 @@ class CheckinViewModelTest {
         }
 
         assertEquals(1, measurements.getMeasurementCount())
-        assertEquals(71f, measurements.getMeasurementForDay(date)!!.weight, 0.001f)
+        assertEquals(71f, measurements.getMeasurementForDay(date)!!.weight!!, 0.001f)
     }
 
     @Test fun past_date_is_prefilled_with_that_days_values_not_the_latest() = runBlocking {
@@ -90,8 +90,8 @@ class CheckinViewModelTest {
         }
 
         assertEquals(2, measurements.getMeasurementCount())
-        assertEquals(75f, measurements.getMeasurementForDay(noon(0))!!.weight, 0.001f)
-        assertEquals(82f, measurements.getMeasurementForDay(noon(4))!!.weight, 0.001f)
+        assertEquals(75f, measurements.getMeasurementForDay(noon(0))!!.weight!!, 0.001f)
+        assertEquals(82f, measurements.getMeasurementForDay(noon(4))!!.weight!!, 0.001f)
     }
 
     @Test fun comma_decimal_is_saved_correctly() = runBlocking {
@@ -100,7 +100,7 @@ class CheckinViewModelTest {
             save(context)
             uiState.await { it.saved }
         }
-        assertEquals(72.5f, measurements.getMeasurementForDay(noon(0))!!.weight, 0.001f)
+        assertEquals(72.5f, measurements.getMeasurementForDay(noon(0))!!.weight!!, 0.001f)
     }
 
     @Test fun invalid_input_blocks_the_save_and_shows_an_error() = runBlocking {
@@ -115,14 +115,28 @@ class CheckinViewModelTest {
         assertEquals(0, measurements.getMeasurementCount())
     }
 
-    @Test fun blank_fields_are_stored_as_zero() = runBlocking {
+    @Test fun blank_fields_are_stored_as_null() = runBlocking {
         viewModel(noon(0)).apply {
             update("weight", "70")
             save(context)
             uiState.await { it.saved }
         }
         val saved = measurements.getMeasurementForDay(noon(0))!!
-        assertEquals(0f, saved.chest, 0f)
-        assertEquals(0f, saved.thighs, 0f)
+        assertEquals(70f, saved.weight!!, 0.001f)
+        assertNull(saved.chest)
+        assertNull(saved.thighs)
+    }
+
+    @Test fun clearing_a_field_and_saving_makes_it_not_logged_again() = runBlocking {
+        measurements.saveMeasurement(MeasurementEntity(date = noon(0), weight = 70f, waist = 80f))
+
+        viewModel(noon(0)).apply {
+            uiState.await { it.waist == "80.0" }
+            update("waist", "")
+            save(context)
+            uiState.await { it.saved }
+        }
+
+        assertNull(measurements.getMeasurementForDay(noon(0))!!.waist)
     }
 }

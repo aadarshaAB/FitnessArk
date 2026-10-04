@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import com.fitnessark.data.local.dao.PhotoDao
 import com.fitnessark.data.local.entity.PhotoEntity
+import com.fitnessark.util.DateUtils
 import com.fitnessark.util.ImageCompressor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -26,9 +27,8 @@ class PhotoRepository(
     ) = withContext(Dispatchers.IO) {
         // Merge into the day's existing entry (if any) instead of replacing it,
         // so angles not passed in this call are preserved rather than wiped.
-        val startOfDay = com.fitnessark.util.DateUtils.getStartOfDay(photo.date)
-        val endOfDay = com.fitnessark.util.DateUtils.getEndOfDay(photo.date)
-        val existing = dao.getPhotoByDate(startOfDay, endOfDay)
+        val day = DateUtils.localDateKey(photo.date)
+        val existing = dao.getPhotoByLocalDate(day)
 
         val baseId = existing?.id ?: photo.id
 
@@ -64,6 +64,7 @@ class PhotoRepository(
         dao.insertPhoto(
             photo.copy(
                 id = baseId,
+                localDate = day,
                 frontPhotoPath = frontPath,
                 sidePhotoPath = sidePath,
                 backPhotoPath = backPath,
@@ -136,9 +137,28 @@ class PhotoRepository(
 
     suspend fun getAllPhotosList(): List<PhotoEntity> = dao.getAllPhotosList()
 
-    suspend fun insertPhotoEntity(photo: PhotoEntity) = dao.insertPhoto(photo)
+    /**
+     * Inserts [photo] as the entry for its calendar day (used by backup import). If the day already
+     * has a different entry, that one is replaced and its image files deleted, unless the incoming
+     * entry points at the same files.
+     */
+    suspend fun insertPhotoEntity(photo: PhotoEntity) = withContext(Dispatchers.IO) {
+        val day = DateUtils.localDateKey(photo.date)
+        val existing = dao.getPhotoByLocalDate(day)
+        if (existing != null && existing.id != photo.id) {
+            val keep = listOfNotNull(
+                photo.frontPhotoPath, photo.sidePhotoPath, photo.backPhotoPath, photo.thumbnailPath
+            ).toSet()
+            listOfNotNull(
+                existing.frontPhotoPath, existing.sidePhotoPath, existing.backPhotoPath, existing.thumbnailPath
+            ).filter { it !in keep }.forEach { File(it).delete() }
+            dao.deletePhoto(existing.id)
+        }
+        dao.insertPhoto(photo.copy(localDate = day))
+    }
 
-    suspend fun getPhotoByDate(start: Long, end: Long): PhotoEntity? = dao.getPhotoByDate(start, end)
+    suspend fun getPhotoForDay(date: Long): PhotoEntity? =
+        dao.getPhotoByLocalDate(DateUtils.localDateKey(date))
 
     suspend fun deleteAllPhotos() = withContext(Dispatchers.IO) {
         val photos = dao.getAllPhotosList()

@@ -30,7 +30,7 @@ class ZipUtilsTest {
         val thumb = photoFile("thumb_p1.jpg", "thumb-bytes")
         val measurements = listOf(
             MeasurementEntity("m1", 1_700_000_000_000, 72.5f, 100f, 80f, 95f, 35f, 55f, "note one"),
-            MeasurementEntity("m2", 1_700_086_400_000, 72f, 0f, 0f, 0f, 0f, 0f, null)
+            MeasurementEntity("m2", 1_700_086_400_000, 72f, null, null, null, null, null, null)
         )
         val photos = listOf(
             PhotoEntity("p1", 1_700_000_000_000, front.absolutePath, null, null, thumb.absolutePath)

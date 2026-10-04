@@ -67,9 +67,33 @@ class MeasurementRepositoryTest {
         repo.saveMeasurement(MeasurementEntity(date = noon(3), weight = 71f))
         repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 69f))
 
-        assertEquals(71f, repo.getMeasurementForDay(noon(3))!!.weight, 0.001f)
-        assertEquals(69f, repo.getMeasurementForDay(noon(0))!!.weight, 0.001f)
+        assertEquals(71f, repo.getMeasurementForDay(noon(3))!!.weight!!, 0.001f)
+        assertEquals(69f, repo.getMeasurementForDay(noon(0))!!.weight!!, 0.001f)
         assertNull(repo.getMeasurementForDay(noon(1)))
+    }
+
+    @Test fun saving_a_different_id_on_the_same_day_updates_that_days_row() = runBlocking {
+        val first = MeasurementEntity(date = noon(0), weight = 70f)
+        repo.saveMeasurement(first)
+        repo.saveMeasurement(MeasurementEntity(date = noon(0) + 3_600_000, weight = 71f, waist = 80f))
+
+        assertEquals(1, repo.getMeasurementCount())
+        val row = repo.getMeasurementForDay(noon(0))!!
+        assertEquals("the day keeps its original id", first.id, row.id)
+        assertEquals(71f, row.weight!!, 0.001f)
+        assertEquals(80f, row.waist!!, 0.001f)
+    }
+
+    @Test fun the_database_itself_rejects_a_second_row_for_a_day() {
+        val dao = db.measurementDao()
+        val a = MeasurementEntity(id = "a", date = noon(0), weight = 70f)
+        val b = MeasurementEntity(id = "b", date = noon(0), weight = 71f)
+
+        // Bypassing the repository: REPLACE on the unique day index still leaves a single row.
+        runBlocking { dao.insertMeasurement(a); dao.insertMeasurement(b) }
+
+        val all = runBlocking { dao.getAllMeasurementsList() }
+        assertEquals(listOf("b"), all.map { it.id })
     }
 
     @Test fun saving_with_same_id_replaces_instead_of_duplicating() = runBlocking {
@@ -79,6 +103,6 @@ class MeasurementRepositoryTest {
 
         assertEquals(1, repo.getMeasurementCount())
         assertNotNull(repo.getMeasurementForDay(noon(0)))
-        assertEquals(71f, repo.getLatestMeasurement()!!.weight, 0.001f)
+        assertEquals(71f, repo.getLatestMeasurement()!!.weight!!, 0.001f)
     }
 }

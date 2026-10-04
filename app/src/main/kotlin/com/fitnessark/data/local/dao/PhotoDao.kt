@@ -19,8 +19,8 @@ interface PhotoDao {
     @Query("SELECT * FROM photos ORDER BY date DESC LIMIT 1")
     suspend fun getLatestPhoto(): PhotoEntity?
 
-    @Query("SELECT * FROM photos WHERE date >= :startOfDay AND date < :endOfDay LIMIT 1")
-    suspend fun getPhotoByDate(startOfDay: Long, endOfDay: Long): PhotoEntity?
+    @Query("SELECT * FROM photos WHERE localDate = :localDate LIMIT 1")
+    suspend fun getPhotoByLocalDate(localDate: String): PhotoEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPhoto(photo: PhotoEntity)

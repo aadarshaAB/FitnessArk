@@ -7,10 +7,14 @@ import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.DateUtils
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -32,56 +36,59 @@ class DashboardViewModel(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        loadDashboardData()
+        // Re-derives everything whenever measurements or photos change, and when the calendar day
+        // rolls over while the app stays open (so "today" and the streak don't go stale).
+        viewModelScope.launch {
+            combine(
+                measurementRepo.getAllMeasurements(),
+                photoRepo.getPhotos(),
+                currentDay()
+            ) { measurements, photos, _ -> buildState(measurements, photos.firstOrNull()) }
+                .collect { _uiState.value = it }
+        }
     }
 
-    fun loadDashboardData() {
-        viewModelScope.launch {
-            val latest = measurementRepo.getLatestMeasurement()
-            val streak = measurementRepo.calculateStreak()
-            val count = measurementRepo.getMeasurementCount()
-            val latestPhoto = photoRepo.getLatestPhoto()
-
-            val today = DateUtils.getStartOfDay(System.currentTimeMillis())
-            val sevenDaysAgo = today - TimeUnit.DAYS.toMillis(7)
-            val recentMeasurements = measurementRepo.getMeasurementsBetween(sevenDaysAgo, today + TimeUnit.DAYS.toMillis(1))
-
-            val weighedMeasurements = recentMeasurements.filter { it.weight > 0f }
-            val weightChange = if (weighedMeasurements.size >= 2) {
-                val oldest = weighedMeasurements.minByOrNull { it.date }!!.weight
-                val newest = weighedMeasurements.maxByOrNull { it.date }!!.weight
-                newest - oldest
-            } else null
-
-            val todayStart = DateUtils.getStartOfDay(System.currentTimeMillis())
-            val todayWeight = recentMeasurements.firstOrNull { it.date >= todayStart && it.weight > 0f }?.weight
-
-            _uiState.update {
-                it.copy(
-                    todayWeight = todayWeight,
-                    streakDays = streak,
-                    latestPhoto = latestPhoto,
-                    measurementCount = count,
-                    weightChangeLast7Days = weightChange,
-                    isLoading = false
-                )
-            }
+    private fun currentDay(): Flow<String> = flow {
+        while (true) {
+            emit(DateUtils.localDateKey(System.currentTimeMillis()))
+            delay(DAY_CHECK_INTERVAL_MS)
         }
+    }.distinctUntilChanged()
+
+    /** [measurements] arrive newest-first. */
+    private fun buildState(measurements: List<MeasurementEntity>, latestPhoto: PhotoEntity?): DashboardUiState {
+        val now = System.currentTimeMillis()
+        val today = DateUtils.getStartOfDay(now)
+        val sevenDaysAgo = today - TimeUnit.DAYS.toMillis(7)
+
+        val weighed = measurements.filter { it.weight != null && it.date >= sevenDaysAgo }
+        val weightChange = if (weighed.size >= 2) {
+            weighed.first().weight!! - weighed.last().weight!!   // newest - oldest
+        } else null
+
+        val todayKey = DateUtils.localDateKey(now)
+        return DashboardUiState(
+            todayWeight = measurements.firstOrNull { it.localDate == todayKey }?.weight,
+            streakDays = measurementRepo.streakOf(measurements),
+            latestPhoto = latestPhoto,
+            measurementCount = measurements.size,
+            weightChangeLast7Days = weightChange,
+            isLoading = false
+        )
     }
 
     fun updateWeight(weight: Float) {
         viewModelScope.launch {
-            val existing = measurementRepo.getLatestMeasurement()
-            val todayStart = DateUtils.getStartOfDay(System.currentTimeMillis())
-
-            if (existing != null && existing.date >= todayStart) {
-                measurementRepo.saveMeasurement(existing.copy(weight = weight))
-            } else {
-                measurementRepo.saveMeasurement(
-                    MeasurementEntity(weight = weight)
-                )
-            }
-            loadDashboardData()
+            val now = System.currentTimeMillis()
+            val today = measurementRepo.getMeasurementForDay(now)
+            // The dashboard observes the database, so it refreshes itself after this save.
+            measurementRepo.saveMeasurement(
+                today?.copy(weight = weight) ?: MeasurementEntity(date = now, weight = weight)
+            )
         }
+    }
+
+    private companion object {
+        const val DAY_CHECK_INTERVAL_MS = 60_000L
     }
 }

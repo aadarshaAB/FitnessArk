@@ -218,7 +218,7 @@ fun DayDetailCard(
     selectedMetric: Metric,
     onDismiss:      () -> Unit,
     onDelete:       () -> Unit,
-    getMetricValue: (Metric) -> Float
+    getMetricValue: (Metric) -> Float?
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     Card(
@@ -289,7 +289,7 @@ fun DayDetailCard(
                 modifier          = Modifier.padding(bottom = 10.dp)
             ) {
                 Text(
-                    "%.1f".format(highlightValue),
+                    highlightValue?.let { "%.1f".format(it) } ?: "—",
                     style      = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color      = CyanPrimary
@@ -322,9 +322,8 @@ fun DayDetailCard(
                         val value = getMetricValue(metric)
                         MetricCell(
                             label  = metric.label,
-                            value  = if (value > 0f) "%.1f %s".format(value, metric.unit)
-                                     else "—",
-                            muted  = value <= 0f,
+                            value  = value?.let { "%.1f %s".format(it, metric.unit) } ?: "—",
+                            muted  = value == null,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -554,7 +553,7 @@ fun MeasurementTableRow(m: MeasurementEntity) {
                 listOf("Weight" to (m.weight to "kg"), "Chest" to (m.chest to "cm"), "Waist" to (m.waist to "cm"))
                     .forEach { (label, valueUnit) ->
                         val (raw, unit) = valueUnit
-                        val value = if (raw > 0f) "%.1f%s".format(raw, unit) else "—"
+                        val value = raw?.let { "%.1f%s".format(it, unit) } ?: "—"
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -568,7 +567,7 @@ fun MeasurementTableRow(m: MeasurementEntity) {
                 listOf("Hips" to (m.hips to "cm"), "Biceps" to (m.biceps to "cm"), "Thighs" to (m.thighs to "cm"))
                     .forEach { (label, valueUnit) ->
                         val (raw, unit) = valueUnit
-                        val value = if (raw > 0f) "%.1f%s".format(raw, unit) else "—"
+                        val value = raw?.let { "%.1f%s".format(it, unit) } ?: "—"
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -632,7 +631,8 @@ fun ComparisonModePanel(
                         "Weight" to it.weightDiff, "Chest"  to it.chestDiff,
                         "Waist"  to it.waistDiff,  "Hips"   to it.hipsDiff,
                         "Biceps" to it.bicepsDiff,  "Thighs" to it.thighsDiff
-                    ).filter { (_, d) -> d != 0f }.forEach { (label, diff) ->
+                    ).forEach { (label, diff) ->
+                        if (diff == null || diff == 0f) return@forEach
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(label, style = MaterialTheme.typography.bodySmall)
                             // Neutral color + arrow: a change isn't "good" or "bad" without a goal.

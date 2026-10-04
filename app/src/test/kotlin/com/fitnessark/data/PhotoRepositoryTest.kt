@@ -74,6 +74,25 @@ class PhotoRepositoryTest {
         assertEquals(2, db.photoDao().getAllPhotosList().size)
     }
 
+    @Test fun importing_an_entry_for_a_day_that_has_one_replaces_it_and_cleans_up_its_files() = runBlocking {
+        repo.savePhoto(PhotoEntity(date = day), bitmap(), null, null)
+        val local = saved()
+
+        repo.insertPhotoEntity(PhotoEntity(id = "imported", date = day, frontPhotoPath = "/restored/front.jpg"))
+
+        val only = saved()
+        assertEquals("imported", only.id)
+        assertFalse("replaced entry's file should be deleted", exists(local.frontPhotoPath))
+        assertFalse(exists(local.thumbnailPath))
+    }
+
+    @Test fun the_database_itself_rejects_a_second_photo_entry_for_a_day() = runBlocking {
+        db.photoDao().insertPhoto(PhotoEntity(id = "a", date = day))
+        db.photoDao().insertPhoto(PhotoEntity(id = "b", date = day))
+
+        assertEquals(listOf("b"), db.photoDao().getAllPhotosList().map { it.id })
+    }
+
     @Test fun deleting_an_angle_removes_its_file_and_keeps_the_rest() = runBlocking {
         repo.savePhoto(PhotoEntity(date = day), bitmap(), bitmap(), bitmap())
         val before = saved()

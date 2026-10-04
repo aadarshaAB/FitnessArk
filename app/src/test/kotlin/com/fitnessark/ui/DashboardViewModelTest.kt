@@ -47,7 +47,7 @@ class DashboardViewModelTest {
 
     @Test fun seven_day_change_ignores_entries_with_blank_weight() = runBlocking {
         repo.saveMeasurement(MeasurementEntity(date = noon(5), weight = 80f))
-        repo.saveMeasurement(MeasurementEntity(date = noon(3), weight = 0f))   // check-in without weight
+        repo.saveMeasurement(MeasurementEntity(date = noon(3), weight = null))   // check-in without weight
         repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 78f))
 
         val state = viewModel().uiState.await { !it.isLoading }
@@ -58,11 +58,25 @@ class DashboardViewModelTest {
 
     @Test fun no_change_is_reported_with_fewer_than_two_weights() = runBlocking {
         repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 78f))
-        repo.saveMeasurement(MeasurementEntity(date = noon(2), weight = 0f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(2), weight = null))
 
         val state = viewModel().uiState.await { !it.isLoading }
 
         assertNull(state.weightChangeLast7Days)
+    }
+
+    @Test fun dashboard_refreshes_itself_when_data_changes_elsewhere() = runBlocking {
+        val vm = viewModel()
+        vm.uiState.await { !it.isLoading }
+
+        repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 80f))   // e.g. a full check-in
+        val afterSave = vm.uiState.await { it.todayWeight == 80f }
+        assertEquals(1, afterSave.measurementCount)
+        assertEquals(1, afterSave.streakDays)
+
+        repo.deleteMeasurement(repo.getMeasurementForDay(noon(0))!!.id)
+        val afterDelete = vm.uiState.await { it.todayWeight == null && it.measurementCount == 0 }
+        assertEquals(0, afterDelete.streakDays)
     }
 
     @Test fun logging_weight_twice_in_a_day_updates_todays_entry() = runBlocking {

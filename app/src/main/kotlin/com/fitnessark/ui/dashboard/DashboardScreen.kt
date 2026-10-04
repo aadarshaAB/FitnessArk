@@ -44,8 +44,6 @@ fun DashboardScreen(
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) { viewModel.loadDashboardData() }
-
     Scaffold(
         topBar = {
             TopAppBar(

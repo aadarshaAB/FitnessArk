@@ -32,12 +32,13 @@ enum class DateRange(val label: String, val days: Int?) {
 data class ComparisonResult(
     val measurement1: MeasurementEntity,
     val measurement2: MeasurementEntity,
-    val weightDiff:  Float,
-    val chestDiff:   Float,
-    val waistDiff:   Float,
-    val hipsDiff:    Float,
-    val bicepsDiff:  Float,
-    val thighsDiff:  Float,
+    // null when either entry didn't log that measurement
+    val weightDiff:  Float?,
+    val chestDiff:   Float?,
+    val waistDiff:   Float?,
+    val hipsDiff:    Float?,
+    val bicepsDiff:  Float?,
+    val thighsDiff:  Float?,
     val daysBetween: Int
 )
 
@@ -75,7 +76,7 @@ class MeasurementsViewModel(
     // ── Chart data ────────────────────────────────────────────────────────────
 
     /**
-     * One Entry per measurement that has a real (> 0) value for the selected
+     * One Entry per measurement that has a logged (non-null) value for the selected
      * metric. X = day-offset from first entry so gaps reflect real time.
      */
     fun getChartData(): List<Entry> {
@@ -88,7 +89,7 @@ class MeasurementsViewModel(
             // but tag each Entry with its list index so we can recover the
             // MeasurementEntity on tap (via Entry.data).
             val dayOffset = TimeUnit.MILLISECONDS.toDays(m.date - firstDate).toFloat()
-            Entry(dayOffset, getMetricValue(m, metric), index)   // data = index
+            Entry(dayOffset, getMetricValue(m, metric)!!, index)   // data = index
         }
     }
 
@@ -134,7 +135,7 @@ class MeasurementsViewModel(
     }
 
     fun filteredMeasurementsWithValue(metric: Metric): List<MeasurementEntity> =
-        filteredMeasurements().filter { getMetricValue(it, metric) > 0f }
+        filteredMeasurements().filter { getMetricValue(it, metric) != null }
 
     // ── Other actions ─────────────────────────────────────────────────────────
 
@@ -161,12 +162,12 @@ class MeasurementsViewModel(
         val m2 = _uiState.value.measurements.find { it.id == id2 } ?: return null
         return ComparisonResult(
             measurement1 = m1, measurement2 = m2,
-            weightDiff  = m2.weight - m1.weight,
-            chestDiff   = m2.chest  - m1.chest,
-            waistDiff   = m2.waist  - m1.waist,
-            hipsDiff    = m2.hips   - m1.hips,
-            bicepsDiff  = m2.biceps - m1.biceps,
-            thighsDiff  = m2.thighs - m1.thighs,
+            weightDiff  = diff(m1.weight, m2.weight),
+            chestDiff   = diff(m1.chest,  m2.chest),
+            waistDiff   = diff(m1.waist,  m2.waist),
+            hipsDiff    = diff(m1.hips,   m2.hips),
+            bicepsDiff  = diff(m1.biceps, m2.biceps),
+            thighsDiff  = diff(m1.thighs, m2.thighs),
             daysBetween = DateUtils.getDaysBetween(m1.date, m2.date)
         ).also { result -> _uiState.update { it.copy(comparisonResult = result) } }
     }
@@ -207,7 +208,11 @@ class MeasurementsViewModel(
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    fun getMetricValue(m: MeasurementEntity, metric: Metric): Float = when (metric) {
+    private fun diff(from: Float?, to: Float?): Float? =
+        if (from != null && to != null) to - from else null
+
+    /** The logged value for [metric], or null if it wasn't logged that day. */
+    fun getMetricValue(m: MeasurementEntity, metric: Metric): Float? = when (metric) {
         Metric.WEIGHT -> m.weight
         Metric.CHEST  -> m.chest
         Metric.WAIST  -> m.waist
