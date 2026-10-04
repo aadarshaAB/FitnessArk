@@ -5,6 +5,7 @@ import com.fitnessark.TestSupport
 import com.fitnessark.TestSupport.noon
 import com.fitnessark.data.local.AppDatabase
 import com.fitnessark.data.local.entity.PhotoEntity
+import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.ImageCompressor
 import kotlinx.coroutines.runBlocking
@@ -97,7 +98,7 @@ class PhotoRepositoryTest {
         repo.savePhoto(PhotoEntity(date = day), bitmap(), bitmap(), bitmap())
         val before = saved()
 
-        repo.deletePhotoAngle(before.id, "side")
+        repo.deletePhotoAngle(before.id, PhotoAngle.SIDE)
         val after = saved()
 
         assertNull(after.sidePhotoPath)
@@ -111,7 +112,7 @@ class PhotoRepositoryTest {
         repo.savePhoto(PhotoEntity(date = day), bitmap(), bitmap(), null)
         val before = saved()
 
-        repo.deletePhotoAngle(before.id, "front")
+        repo.deletePhotoAngle(before.id, PhotoAngle.FRONT)
         val after = saved()
 
         assertNull(after.frontPhotoPath)
@@ -124,7 +125,7 @@ class PhotoRepositoryTest {
         repo.savePhoto(PhotoEntity(date = day), bitmap(), null, null)
         val before = saved()
 
-        repo.deletePhotoAngle(before.id, "front")
+        repo.deletePhotoAngle(before.id, PhotoAngle.FRONT)
 
         assertTrue(db.photoDao().getAllPhotosList().isEmpty())
         assertFalse(exists(before.frontPhotoPath))

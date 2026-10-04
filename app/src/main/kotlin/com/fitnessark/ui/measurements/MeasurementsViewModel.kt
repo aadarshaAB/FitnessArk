@@ -3,6 +3,7 @@ package com.fitnessark.ui.measurements
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessark.data.local.entity.MeasurementEntity
+import com.fitnessark.data.model.Metric
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.util.DateUtils
 import com.github.mikephil.charting.data.Entry
@@ -12,15 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
-
-enum class Metric(val label: String, val unit: String) {
-    WEIGHT("Weight", "kg"),
-    CHEST("Chest",   "cm"),
-    WAIST("Waist",   "cm"),
-    HIPS("Hips",     "cm"),
-    BICEPS("Biceps", "cm"),
-    THIGHS("Thighs", "cm")
-}
 
 enum class DateRange(val label: String, val days: Int?) {
     DAYS_7("7d",   7),
@@ -212,12 +204,5 @@ class MeasurementsViewModel(
         if (from != null && to != null) to - from else null
 
     /** The logged value for [metric], or null if it wasn't logged that day. */
-    fun getMetricValue(m: MeasurementEntity, metric: Metric): Float? = when (metric) {
-        Metric.WEIGHT -> m.weight
-        Metric.CHEST  -> m.chest
-        Metric.WAIST  -> m.waist
-        Metric.HIPS   -> m.hips
-        Metric.BICEPS -> m.biceps
-        Metric.THIGHS -> m.thighs
-    }
+    fun getMetricValue(m: MeasurementEntity, metric: Metric): Float? = metric.valueIn(m)
 }

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.fitnessark.data.local.entity.MeasurementEntity
+import com.fitnessark.data.model.Metric
 import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import com.github.mikephil.charting.charts.LineChart

@@ -1,5 +1,6 @@
 package com.fitnessark.util
 
+import com.fitnessark.data.model.Metric
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -22,29 +23,29 @@ class MeasurementInputTest {
     }
 
     @Test fun blank_is_valid_because_fields_are_optional() {
-        assertNull(MeasurementInput.validate("weight", ""))
-        assertNull(MeasurementInput.validate("waist", "   "))
+        assertNull(MeasurementInput.validate(Metric.WEIGHT, ""))
+        assertNull(MeasurementInput.validate(Metric.WAIST, "   "))
     }
 
     @Test fun weight_range_is_20_to_400() {
-        assertNull(MeasurementInput.validate("weight", "20"))
-        assertNull(MeasurementInput.validate("weight", "400"))
-        assertNotNull(MeasurementInput.validate("weight", "19.9"))
-        assertNotNull(MeasurementInput.validate("weight", "400.1"))
-        assertNotNull(MeasurementInput.validate("weight", "0"))
-        assertNotNull(MeasurementInput.validate("weight", "-5"))
+        assertNull(MeasurementInput.validate(Metric.WEIGHT, "20"))
+        assertNull(MeasurementInput.validate(Metric.WEIGHT, "400"))
+        assertNotNull(MeasurementInput.validate(Metric.WEIGHT, "19.9"))
+        assertNotNull(MeasurementInput.validate(Metric.WEIGHT, "400.1"))
+        assertNotNull(MeasurementInput.validate(Metric.WEIGHT, "0"))
+        assertNotNull(MeasurementInput.validate(Metric.WEIGHT, "-5"))
     }
 
     @Test fun body_measurement_range_is_10_to_300() {
-        for (key in listOf("chest", "waist", "hips", "biceps", "thighs")) {
-            assertNull(key, MeasurementInput.validate(key, "10"))
-            assertNull(key, MeasurementInput.validate(key, "300"))
-            assertNotNull(key, MeasurementInput.validate(key, "9.9"))
-            assertNotNull(key, MeasurementInput.validate(key, "301"))
+        for (key in Metric.entries - Metric.WEIGHT) {
+            assertNull(key.name, MeasurementInput.validate(key, "10"))
+            assertNull(key.name, MeasurementInput.validate(key, "300"))
+            assertNotNull(key.name, MeasurementInput.validate(key, "9.9"))
+            assertNotNull(key.name, MeasurementInput.validate(key, "301"))
         }
     }
 
     @Test fun non_numeric_text_reports_an_error() {
-        assertEquals("Enter a number", MeasurementInput.validate("weight", "heavy"))
+        assertEquals("Enter a number", MeasurementInput.validate(Metric.WEIGHT, "heavy"))
     }
 }

@@ -6,7 +6,7 @@ import com.fitnessark.await
 import com.fitnessark.data.local.AppDatabase
 import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.repository.MeasurementRepository
-import com.fitnessark.ui.measurements.Metric
+import com.fitnessark.data.model.Metric
 import com.fitnessark.ui.measurements.MeasurementsViewModel
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.Dispatchers

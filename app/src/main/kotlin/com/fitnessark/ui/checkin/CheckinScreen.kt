@@ -1,7 +1,5 @@
 package com.fitnessark.ui.checkin
 
-import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -30,187 +28,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
-import com.fitnessark.data.local.entity.MeasurementEntity
-import com.fitnessark.data.local.entity.PhotoEntity
-import com.fitnessark.data.repository.MeasurementRepository
-import com.fitnessark.data.repository.PhotoRepository
+import com.fitnessark.data.model.Metric
+import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.ui.theme.CyanPrimary
-import com.fitnessark.util.BitmapUtils
 import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
-import com.fitnessark.util.MeasurementInput
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
-
-// ─── UI State ────────────────────────────────────────────────────────────────
-
-data class CheckinUiState(
-    val weight: String = "",
-    val chest: String = "",
-    val waist: String = "",
-    val hips: String = "",
-    val biceps: String = "",
-    val thighs: String = "",
-    val notes: String = "",
-    val frontPhotoUri: Uri? = null,
-    val sidePhotoUri: Uri? = null,
-    val backPhotoUri: Uri? = null,
-    val isSaving: Boolean = false,
-    val saved: Boolean = false,
-    val errorMessage: String? = null
-)
-
-// ─── ViewModel ───────────────────────────────────────────────────────────────
-
-class CheckinViewModel(
-    private val measurementRepo: MeasurementRepository,
-    private val photoRepo: PhotoRepository,
-    private val date: Long
-) : ViewModel() {
-
-    private val _uiState = MutableStateFlow(CheckinUiState())
-    val uiState: StateFlow<CheckinUiState> = _uiState.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            measurementRepo.getMeasurementForDay(date)?.let { m ->
-                _uiState.update { s ->
-                    s.copy(
-                        weight = m.weight?.toString() ?: "",
-                        chest  = m.chest?.toString()  ?: "",
-                        waist  = m.waist?.toString()  ?: "",
-                        hips   = m.hips?.toString()   ?: "",
-                        biceps = m.biceps?.toString() ?: "",
-                        thighs = m.thighs?.toString() ?: "",
-                        notes  = m.notes ?: ""
-                    )
-                }
-            }
-        }
-    }
-
-    fun update(field: String, value: String) {
-        _uiState.update {
-            when (field) {
-                "weight" -> it.copy(weight = value)
-                "chest"  -> it.copy(chest  = value)
-                "waist"  -> it.copy(waist  = value)
-                "hips"   -> it.copy(hips   = value)
-                "biceps" -> it.copy(biceps = value)
-                "thighs" -> it.copy(thighs = value)
-                "notes"  -> it.copy(notes  = value)
-                else     -> it
-            }
-        }
-    }
-
-    fun setPhotoUri(type: String, uri: Uri?) {
-        _uiState.update {
-            when (type) {
-                "front" -> it.copy(frontPhotoUri = uri)
-                "side"  -> it.copy(sidePhotoUri  = uri)
-                "back"  -> it.copy(backPhotoUri  = uri)
-                else    -> it
-            }
-        }
-    }
-
-    /** Error text for a measurement field, or null when it is blank or valid. */
-    fun fieldError(key: String, state: CheckinUiState): String? = MeasurementInput.validate(
-        key,
-        when (key) {
-            "weight" -> state.weight; "chest"  -> state.chest
-            "waist"  -> state.waist;  "hips"   -> state.hips
-            "biceps" -> state.biceps; else     -> state.thighs
-        }
-    )
-
-    fun save(context: Context) {
-        val current = _uiState.value
-        if (measurementKeys.any { fieldError(it, current) != null }) {
-            _uiState.update { it.copy(errorMessage = "Please fix the highlighted fields") }
-            return
-        }
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
-            try {
-                val s = _uiState.value
-                // The repository keeps one row per day, reusing that day's existing id.
-                measurementRepo.saveMeasurement(
-                    MeasurementEntity(
-                        date   = date,
-                        weight = MeasurementInput.parse(s.weight),
-                        chest  = MeasurementInput.parse(s.chest),
-                        waist  = MeasurementInput.parse(s.waist),
-                        hips   = MeasurementInput.parse(s.hips),
-                        biceps = MeasurementInput.parse(s.biceps),
-                        thighs = MeasurementInput.parse(s.thighs),
-                        notes  = s.notes.ifEmpty { null }
-                    )
-                )
-                if (s.frontPhotoUri != null || s.sidePhotoUri != null || s.backPhotoUri != null) {
-                    coroutineScope {
-                        fun loadBitmapAsync(uri: Uri?) = uri?.let {
-                            async(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, it) }
-                        }
-
-                        val frontDeferred = loadBitmapAsync(s.frontPhotoUri)
-                        val sideDeferred = loadBitmapAsync(s.sidePhotoUri)
-                        val backDeferred = loadBitmapAsync(s.backPhotoUri)
-
-                        photoRepo.savePhoto(
-                            PhotoEntity(date = date),
-                            frontDeferred?.await(),
-                            sideDeferred?.await(),
-                            backDeferred?.await()
-                        )
-                    }
-                }
-                _uiState.update { it.copy(isSaving = false, saved = true) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isSaving = false, errorMessage = e.message) }
-            }
-        }
-    }
-
-    fun clearError() = _uiState.update { it.copy(errorMessage = null) }
-
-    private companion object {
-        val measurementKeys = listOf("weight", "chest", "waist", "hips", "biceps", "thighs")
-    }
-}
 
 // ─── Pose slot data ──────────────────────────────────────────────────────────
 
 private data class PoseSlot(
-    val key: String,
-    val label: String,
+    val angle: PhotoAngle,
     val emoji: String,
     val instruction: String,
     val hint: String
 )
 
 private val poseSlots = listOf(
-    PoseSlot("front", "Front",
+    PoseSlot(PhotoAngle.FRONT,
         "🧍",
         "Stand straight, arms slightly away from sides, facing the camera",
         "Keep your feet shoulder-width apart"),
-    PoseSlot("side", "Side",
+    PoseSlot(PhotoAngle.SIDE,
         "🧍",
         "Turn 90° to your left, arms relaxed at sides",
         "Look straight ahead, chin parallel to the floor"),
-    PoseSlot("back", "Back",
+    PoseSlot(PhotoAngle.BACK,
         "🧍",
         "Turn around completely, arms slightly away from sides",
         "Feet shoulder-width apart, head straight")
@@ -239,7 +84,7 @@ fun CheckinScreen(
 
     // ── Camera URIs (one per pose, created fresh each time camera opens) ──
     // rememberSaveable: the camera app often gets us killed in the background; these must survive that
-    var pendingCameraSlot by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingCameraSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
     var currentCameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -264,9 +109,9 @@ fun CheckinScreen(
 
     // Photo source dialog state
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
-    var dialogTargetSlot by rememberSaveable { mutableStateOf("") }
+    var dialogTargetSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
 
-    fun openSource(slot: String) {
+    fun openSource(slot: PhotoAngle) {
         dialogTargetSlot = slot
         showSourceDialog = true
     }
@@ -312,32 +157,20 @@ fun CheckinScreen(
             // ── Measurements ────────────────────────────────────────────
             SectionHeader(icon = Icons.Default.Straighten, title = "Measurements")
 
-            val fields = listOf(
-                Triple("weight", "Weight", "kg"),
-                Triple("chest",  "Chest",  "cm"),
-                Triple("waist",  "Waist",  "cm"),
-                Triple("hips",   "Hips",   "cm"),
-                Triple("biceps", "Biceps", "cm"),
-                Triple("thighs", "Thighs", "cm")
-            )
             // Two-column grid for measurements
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                fields.chunked(2).forEach { row ->
+                Metric.entries.chunked(2).forEach { row ->
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        row.forEach { (key, label, unit) ->
-                            val value = when (key) {
-                                "weight" -> state.weight; "chest"  -> state.chest
-                                "waist"  -> state.waist;  "hips"   -> state.hips
-                                "biceps" -> state.biceps; else     -> state.thighs
-                            }
-                            val fieldError = viewModel.fieldError(key, state)
+                        row.forEach { metric ->
+                            val unit = metric.unit
+                            val fieldError = viewModel.fieldError(metric, state)
                             OutlinedTextField(
-                                value = value,
-                                onValueChange = { viewModel.update(key, it) },
-                                label = { Text("$label ($unit)") },
+                                value = state.text(metric),
+                                onValueChange = { viewModel.update(metric, it) },
+                                label = { Text("${metric.label} ($unit)") },
                                 isError = fieldError != null,
                                 supportingText = fieldError?.let { { Text(it) } },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -358,7 +191,7 @@ fun CheckinScreen(
 
             OutlinedTextField(
                 value = state.notes,
-                onValueChange = { viewModel.update("notes", it) },
+                onValueChange = { viewModel.updateNotes(it) },
                 label = { Text("Notes (optional)") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
@@ -379,16 +212,11 @@ fun CheckinScreen(
 
             // Three pose cards
             poseSlots.forEach { slot ->
-                val uri = when (slot.key) {
-                    "front" -> state.frontPhotoUri
-                    "side"  -> state.sidePhotoUri
-                    else    -> state.backPhotoUri
-                }
                 PoseCaptureCard(
                     slot      = slot,
-                    capturedUri = uri,
-                    onCapture = { openSource(slot.key) },
-                    onRetake  = { openSource(slot.key) }
+                    capturedUri = state.photoUris[slot.angle],
+                    onCapture = { openSource(slot.angle) },
+                    onRetake  = { openSource(slot.angle) }
                 )
             }
 
@@ -396,7 +224,7 @@ fun CheckinScreen(
 
             // ── Save button ─────────────────────────────────────────────
             Button(
-                onClick = { viewModel.save(context) },
+                onClick = { viewModel.save() },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 enabled = !state.isSaving,
                 colors = ButtonDefaults.buttonColors(
@@ -432,7 +260,7 @@ fun CheckinScreen(
         AlertDialog(
             onDismissRequest = { showSourceDialog = false; pendingCameraSlot = null },
             title = {
-                val slotLabel = poseSlots.find { it.key == dialogTargetSlot }?.label ?: dialogTargetSlot
+                val slotLabel = dialogTargetSlot?.label.orEmpty()
                 Text("Add $slotLabel Photo")
             },
             text = { Text("Choose how you'd like to add this photo.") },
@@ -442,7 +270,7 @@ fun CheckinScreen(
                     onClick = {
                         showSourceDialog = false
                         pendingCameraSlot = dialogTargetSlot
-                        val uri = CameraUtils.createTempCameraUri(context, "pose_${dialogTargetSlot}")
+                        val uri = CameraUtils.createTempCameraUri(context, "pose_${dialogTargetSlot?.fileKey}")
                         currentCameraUri = uri
                         cameraLauncher.launch(uri)
                     },
@@ -527,7 +355,7 @@ private fun PoseCaptureCard(
                 if (captured) {
                     AsyncImage(
                         model = capturedUri,
-                        contentDescription = "${slot.label} photo",
+                        contentDescription = "${slot.angle.label} photo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
                     )
@@ -550,7 +378,7 @@ private fun PoseCaptureCard(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(slot.emoji, fontSize = 28.sp)
-                        Text(slot.label,
+                        Text(slot.angle.label,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -565,7 +393,7 @@ private fun PoseCaptureCard(
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        slot.label,
+                        slot.angle.label,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -622,7 +450,7 @@ private fun PoseCaptureCard(
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Capture ${slot.label}",
+                        Text("Capture ${slot.angle.label}",
                             color = MaterialTheme.colorScheme.onPrimary,
                             style = MaterialTheme.typography.labelLarge)
                     }

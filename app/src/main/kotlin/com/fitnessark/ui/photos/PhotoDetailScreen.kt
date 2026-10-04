@@ -1,6 +1,5 @@
 package com.fitnessark.ui.photos
 
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -24,13 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.fitnessark.data.model.PhotoAngle
+import com.fitnessark.data.model.pathFor
 import com.fitnessark.ui.theme.CyanPrimary
-import com.fitnessark.util.BitmapUtils
 import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,29 +47,27 @@ fun PhotoDetailScreen(
     var selectedTab     by remember { mutableIntStateOf(0) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Which angle is being retaken ("front" | "side" | "back" | null)
+    // Which angle is being retaken (null when none)
     // rememberSaveable: the camera app often gets us killed in the background; these must survive that
-    var retakeAngle     by rememberSaveable { mutableStateOf<String?>(null) }
+    var retakeAngle     by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
     var cameraUri       by rememberSaveable { mutableStateOf<Uri?>(null) }
+
+    fun applyRetake(uri: Uri) {
+        val angle = retakeAngle ?: return
+        scope.launch {
+            val updated = viewModel.retakePhotoAngle(photoId, angle, uri)
+            snackbarHost.showSnackbar(
+                if (updated) "${angle.label} photo updated" else "Couldn't read the photo. Please try again."
+            )
+        }
+    }
 
     // ── Camera launcher ──────────────────────────────────────────────────────
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
-        val angle = retakeAngle
-        val uri = cameraUri
-        if (success && uri != null && angle != null) {
-            scope.launch {
-                val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, uri) }
-                if (bitmap != null) {
-                    viewModel.retakePhotoAngle(context, photoId, angle, bitmap)
-                    snackbarHost.showSnackbar("${angle.replaceFirstChar { it.uppercase() }} photo updated")
-                } else {
-                    snackbarHost.showSnackbar("Couldn't read the photo. Please try again.")
-                }
-            }
-        }
+        cameraUri?.let { if (success) applyRetake(it) }
         retakeAngle = null
         cameraUri = null
     }
@@ -80,23 +76,12 @@ fun PhotoDetailScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        val angle = retakeAngle
-        if (uri != null && angle != null) {
-            scope.launch {
-                val bitmap = withContext(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, uri) }
-                if (bitmap != null) {
-                    viewModel.retakePhotoAngle(context, photoId, angle, bitmap)
-                    snackbarHost.showSnackbar("${angle.replaceFirstChar { it.uppercase() }} photo updated")
-                } else {
-                    snackbarHost.showSnackbar("Couldn't read the photo. Please try again.")
-                }
-            }
-        }
+        uri?.let { applyRetake(it) }
         retakeAngle = null
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
-    fun startRetake(angle: String) {
+    fun startRetake(angle: PhotoAngle) {
         retakeAngle      = angle
         showSourceDialog = true
     }
@@ -135,9 +120,7 @@ fun PhotoDetailScreen(
         }
 
         val views = buildList {
-            if (photo.frontPhotoPath != null) add(Triple("Front", "front", photo.frontPhotoPath))
-            if (photo.sidePhotoPath  != null) add(Triple("Side",  "side",  photo.sidePhotoPath))
-            if (photo.backPhotoPath  != null) add(Triple("Back",  "back",  photo.backPhotoPath))
+            PhotoAngle.entries.forEach { angle -> photo.pathFor(angle)?.let { add(angle to it) } }
         }
         val safeTab = selectedTab.coerceAtMost((views.size - 1).coerceAtLeast(0))
 
@@ -146,11 +129,11 @@ fun PhotoDetailScreen(
             // ── Angle tabs ────────────────────────────────────────────────
             if (views.size > 1) {
                 TabRow(selectedTabIndex = safeTab) {
-                    views.forEachIndexed { i, (label, _, _) ->
+                    views.forEachIndexed { i, (angle, _) ->
                         Tab(
                             selected = safeTab == i,
                             onClick  = { selectedTab = i },
-                            text     = { Text(label) }
+                            text     = { Text(angle.label) }
                         )
                     }
                 }
@@ -162,7 +145,7 @@ fun PhotoDetailScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                val currentPath = views.getOrNull(safeTab)?.third
+                val currentPath = views.getOrNull(safeTab)?.second
 
                 AnimatedContent(targetState = currentPath, label = "photo") { path ->
                     if (path != null) {
@@ -181,13 +164,13 @@ fun PhotoDetailScreen(
                 }
 
                 // Angle label badge top-left
-                views.getOrNull(safeTab)?.let { (label, _, _) ->
+                views.getOrNull(safeTab)?.let { (angle, _) ->
                     Surface(
                         modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
                         color    = Color.Black.copy(alpha = 0.5f),
                         shape    = RoundedCornerShape(6.dp)
                     ) {
-                        Text(label,
+                        Text(angle.label,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style    = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
@@ -197,7 +180,7 @@ fun PhotoDetailScreen(
             }
 
             // ── Per-angle action bar ───────────────────────────────────────
-            views.getOrNull(safeTab)?.let { (label, angleKey, _) ->
+            views.getOrNull(safeTab)?.let { (angle, _) ->
                 Surface(
                     color    = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.fillMaxWidth()
@@ -211,7 +194,7 @@ fun PhotoDetailScreen(
                     ) {
                         // Retake button
                         Button(
-                            onClick = { startRetake(angleKey) },
+                            onClick = { startRetake(angle) },
                             modifier = Modifier.weight(1f),
                             colors   = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -223,7 +206,7 @@ fun PhotoDetailScreen(
                                 tint     = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Retake $label",
+                            Text("Retake ${angle.label}",
                                 color      = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize   = 14.sp)
@@ -234,10 +217,10 @@ fun PhotoDetailScreen(
                             OutlinedButton(
                                 onClick = {
                                     scope.launch {
-                                        viewModel.deletePhotoAngle(photoId, angleKey)
+                                        viewModel.deletePhotoAngle(photoId, angle)
                                         // Move to the first remaining tab
                                         selectedTab = 0
-                                        snackbarHost.showSnackbar("$label photo removed")
+                                        snackbarHost.showSnackbar("${angle.label} photo removed")
                                     }
                                 },
                                 colors = ButtonDefaults.outlinedButtonColors(
@@ -258,7 +241,7 @@ fun PhotoDetailScreen(
 
     // ── Source picker dialog ─────────────────────────────────────────────────
     if (showSourceDialog) {
-        val angleLabel = retakeAngle?.replaceFirstChar { it.uppercase() } ?: ""
+        val angleLabel = retakeAngle?.label.orEmpty()
         AlertDialog(
             onDismissRequest = { showSourceDialog = false; retakeAngle = null },
             icon  = { Icon(Icons.Default.AddAPhoto, null, tint = CyanPrimary,
@@ -269,7 +252,7 @@ fun PhotoDetailScreen(
                 Button(
                     onClick = {
                         showSourceDialog = false
-                        val uri = CameraUtils.createTempCameraUri(context, "retake_${retakeAngle}")
+                        val uri = CameraUtils.createTempCameraUri(context, "retake_${retakeAngle?.fileKey}")
                         cameraUri = uri
                         cameraLauncher.launch(uri)
                     },

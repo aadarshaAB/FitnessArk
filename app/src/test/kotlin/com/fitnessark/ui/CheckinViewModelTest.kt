@@ -5,6 +5,7 @@ import com.fitnessark.TestSupport.noon
 import com.fitnessark.await
 import com.fitnessark.data.local.AppDatabase
 import com.fitnessark.data.local.entity.MeasurementEntity
+import com.fitnessark.data.model.Metric
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.ui.checkin.CheckinViewModel
@@ -53,14 +54,14 @@ class CheckinViewModelTest {
         val date = noon(0)
 
         viewModel(date).apply {
-            update("weight", "70")
-            save(context)
+            update(Metric.WEIGHT, "70")
+            save()
             uiState.await { it.saved }
         }
         viewModel(date).apply {
-            uiState.await { it.weight == "70.0" }          // pre-filled from the first save
-            update("weight", "71")
-            save(context)
+            uiState.await { it.text(Metric.WEIGHT) == "70.0" }          // pre-filled from the first save
+            update(Metric.WEIGHT, "71")
+            save()
             uiState.await { it.saved }
         }
 
@@ -73,10 +74,10 @@ class CheckinViewModelTest {
         measurements.saveMeasurement(MeasurementEntity(date = past, weight = 80f, waist = 90f, notes = "then"))
         measurements.saveMeasurement(MeasurementEntity(date = noon(0), weight = 75f))
 
-        val state = viewModel(past).uiState.await { it.weight.isNotEmpty() }
+        val state = viewModel(past).uiState.await { it.text(Metric.WEIGHT).isNotEmpty() }
 
-        assertEquals("80.0", state.weight)
-        assertEquals("90.0", state.waist)
+        assertEquals("80.0", state.text(Metric.WEIGHT))
+        assertEquals("90.0", state.text(Metric.WAIST))
         assertEquals("then", state.notes)
     }
 
@@ -84,8 +85,8 @@ class CheckinViewModelTest {
         measurements.saveMeasurement(MeasurementEntity(date = noon(0), weight = 75f))
 
         viewModel(noon(4)).apply {
-            update("weight", "82")
-            save(context)
+            update(Metric.WEIGHT, "82")
+            save()
             uiState.await { it.saved }
         }
 
@@ -96,8 +97,8 @@ class CheckinViewModelTest {
 
     @Test fun comma_decimal_is_saved_correctly() = runBlocking {
         viewModel(noon(0)).apply {
-            update("weight", "72,5")
-            save(context)
+            update(Metric.WEIGHT, "72,5")
+            save()
             uiState.await { it.saved }
         }
         assertEquals(72.5f, measurements.getMeasurementForDay(noon(0))!!.weight!!, 0.001f)
@@ -105,20 +106,20 @@ class CheckinViewModelTest {
 
     @Test fun invalid_input_blocks_the_save_and_shows_an_error() = runBlocking {
         val vm = viewModel(noon(0))
-        vm.update("weight", "5")          // below the 20 kg minimum
-        vm.save(context)
+        vm.update(Metric.WEIGHT, "5")          // below the 20 kg minimum
+        vm.save()
 
         val state = vm.uiState.await { it.errorMessage != null }
         assertEquals(false, state.saved)
-        assertNotNull(vm.fieldError("weight", state))
-        assertNull(vm.fieldError("chest", state))
+        assertNotNull(vm.fieldError(Metric.WEIGHT, state))
+        assertNull(vm.fieldError(Metric.CHEST, state))
         assertEquals(0, measurements.getMeasurementCount())
     }
 
     @Test fun blank_fields_are_stored_as_null() = runBlocking {
         viewModel(noon(0)).apply {
-            update("weight", "70")
-            save(context)
+            update(Metric.WEIGHT, "70")
+            save()
             uiState.await { it.saved }
         }
         val saved = measurements.getMeasurementForDay(noon(0))!!
@@ -131,9 +132,9 @@ class CheckinViewModelTest {
         measurements.saveMeasurement(MeasurementEntity(date = noon(0), weight = 70f, waist = 80f))
 
         viewModel(noon(0)).apply {
-            uiState.await { it.waist == "80.0" }
-            update("waist", "")
-            save(context)
+            uiState.await { it.text(Metric.WAIST) == "80.0" }
+            update(Metric.WAIST, "")
+            save()
             uiState.await { it.saved }
         }
 

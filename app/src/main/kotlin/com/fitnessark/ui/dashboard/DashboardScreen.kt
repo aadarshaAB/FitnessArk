@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.fitnessark.data.model.Metric
 import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.MeasurementInput
@@ -136,7 +137,7 @@ fun DashboardScreen(
 
     if (showWeightDialog) {
         val parsedWeight = MeasurementInput.parse(weightInput)
-        val weightError = MeasurementInput.validate("weight", weightInput)
+        val weightError = MeasurementInput.validate(Metric.WEIGHT, weightInput)
         AlertDialog(
             onDismissRequest = { showWeightDialog = false },
             title = { Text("Log Weight") },

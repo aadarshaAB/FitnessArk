@@ -1,5 +1,7 @@
 package com.fitnessark.util
 
+import com.fitnessark.data.model.Metric
+
 /**
  * Parsing and range checks for typed measurement values (always metric: kg / cm).
  */
@@ -16,10 +18,10 @@ object MeasurementInput {
      * Returns an error message for [text], or null when it is valid.
      * Blank is valid (the field is optional); use [parse] to tell blank from a value.
      */
-    fun validate(key: String, text: String): String? {
+    fun validate(metric: Metric, text: String): String? {
         if (text.isBlank()) return null
         val value = parse(text) ?: return "Enter a number"
-        val range = if (key == "weight") WEIGHT_RANGE else BODY_RANGE
+        val range = if (metric == Metric.WEIGHT) WEIGHT_RANGE else BODY_RANGE
         return if (value in range) null
         else "Must be ${range.start.toInt()}–${range.endInclusive.toInt()}"
     }

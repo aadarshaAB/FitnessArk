@@ -1,17 +1,11 @@
 package com.fitnessark.ui.photos
 
-import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessark.data.local.entity.PhotoEntity
+import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.repository.PhotoRepository
-import com.fitnessark.util.BitmapUtils
-import com.fitnessark.util.DateUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,40 +75,18 @@ class PhotoTimelineViewModel(
         }
     }
 
-    fun savePhoto(
-        context:   Context,
-        photo:     PhotoEntity,
-        frontUri:  Uri?,
-        sideUri:   Uri?,
-        backUri:   Uri?
-    ) {
-        viewModelScope.launch {
-            coroutineScope {
-                fun loadBitmapAsync(uri: Uri?) = uri?.let {
-                    async(Dispatchers.IO) { BitmapUtils.decodeUriToBitmap(context, it) }
-                }
-
-                val frontDeferred = loadBitmapAsync(frontUri)
-                val sideDeferred = loadBitmapAsync(sideUri)
-                val backDeferred = loadBitmapAsync(backUri)
-
-                repo.savePhoto(photo, frontDeferred?.await(), sideDeferred?.await(), backDeferred?.await())
-            }
-        }
-    }
-
-    /** Replace a single angle on an existing photo entry with a new bitmap. */
-    fun retakePhotoAngle(context: Context, photoId: String, angle: String, bitmap: android.graphics.Bitmap) {
-        viewModelScope.launch {
-            repo.updatePhotoAngle(photoId, angle, bitmap)
-        }
-    }
+    /**
+     * Replaces [angle] on an existing photo entry with the photo at [uri].
+     * Returns false if the photo couldn't be read (nothing is changed then).
+     */
+    suspend fun retakePhotoAngle(photoId: String, angle: PhotoAngle, uri: Uri): Boolean =
+        repo.updatePhotoAngle(photoId, angle, uri)
 
     /**
-     * Delete just one angle (front/side/back) from a photo entry.
+     * Delete just one angle from a photo entry.
      * If all three angles are gone after removal, deletes the whole entry.
      */
-    fun deletePhotoAngle(photoId: String, angle: String) {
+    fun deletePhotoAngle(photoId: String, angle: PhotoAngle) {
         viewModelScope.launch { repo.deletePhotoAngle(photoId, angle) }
     }
 }
