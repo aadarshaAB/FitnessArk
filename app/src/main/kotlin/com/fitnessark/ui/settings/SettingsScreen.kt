@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fitnessark.BuildConfig
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.ui.theme.CyanPrimary
 import kotlinx.coroutines.launch
@@ -148,7 +149,7 @@ fun SettingsScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AboutRow("Version", "1.0.0")
+                    AboutRow("Version", BuildConfig.VERSION_NAME)
                     AboutRow("Total Entries", "${state.entryCount}")
                     AboutRow("Storage Used", formatBytes(state.appSizeBytes))
                 }
