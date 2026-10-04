@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1–F6 done, reviewed, committed; F5+F6 verified on a phone; F5/F6 and a crash fix not yet pushed — see "Where things stand"). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -14,13 +14,14 @@ Last updated: 2026-10-04 (F1–F6 done, reviewed, committed; F5+F6 verified on a
 |------|--------|
 | Tier 1 quick wins Q1–Q19 | **Done**, committed, pushed |
 | Tier 2 structural S1–S9 | **Done**, committed, pushed (last commit `02557e5`) |
-| Tier 1 follow-ups Q20, Q21 | Not started, awaiting a decision |
+| Q20 | **Done**, committed, pushed (`fb9950a`) — fixed live after the user hit it; see "Full history" and "Verification" |
+| Q21 | Not started, awaiting a decision |
 | Q22 | **Done** with F3 |
-| Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F11 not started |
+| Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed, pushed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F11 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | Pushed, **not seen to pass yet** |
-| Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else in this session is committed. |
-| Not pushed | `17e2e85` (widget crash fix) — local `main` is 1 commit ahead of `origin/main`. |
+| Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else is committed and pushed. |
+| Not pushed | Nothing — local `main` matches `origin/main` at `fb9950a`. |
 
 ## Full history (oldest first)
 
@@ -79,7 +80,9 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 | F5 | `39ca9ff` | Daily check-in reminder: `util/ReminderScheduler` + `ReminderWorker` (WorkManager, self-rescheduling one-shot chain), time picker + switch in Settings, `POST_NOTIFICATIONS` requested only on enable, skipped automatically on a day already logged, re-armed on app start. New dependency `work-runtime-ktx`. |
 | F6 | `9db6166` | Home-screen widget (Jetpack Glance): streak, today's weight, "Log weight" button opening the app straight to the weight dialog (`MainActivity.EXTRA_OPEN_WEIGHT_DIALOG`); refreshed via `WidgetUpdater` after any weight save. New dependency `glance-appwidget`. |
 | docs | `e4f0a70` | Docs updated through F5/F6. |
-| fix | `17e2e85` | **Widget-button crash found during on-phone verification** (see "Verification"): both F6 widget buttons threw `ActivityNotFoundException` on tap on Android 17 (API 37) — Glance 1.1.1's `RemoteViews.startPendingIntent` failing on an OS version newer than the library, `compileSdk`/`targetSdk` 35, and the highest locally installed SDK platform (36.1). Fixed by bumping `glance` 1.1.1→1.2.0 (latest stable) and, since Glance 1.2.0 requires it, `agp` 8.5.2→8.6.1 (the minimal satisfying version). `minSdk`/`targetSdk`/`compileSdk`/Kotlin/JVM target unchanged. Reviewed (approved, no findings) before commit. **Not yet pushed.** |
+| fix | `17e2e85` | **Widget-button crash found during on-phone verification** (see "Verification"): both F6 widget buttons threw `ActivityNotFoundException` on tap on Android 17 (API 37) — Glance 1.1.1's `RemoteViews.startPendingIntent` failing on an OS version newer than the library, `compileSdk`/`targetSdk` 35, and the highest locally installed SDK platform (36.1). Fixed by bumping `glance` 1.1.1→1.2.0 (latest stable) and, since Glance 1.2.0 requires it, `agp` 8.5.2→8.6.1 (the minimal satisfying version). `minSdk`/`targetSdk`/`compileSdk`/Kotlin/JVM target unchanged. Reviewed (approved, no findings) before commit. |
+| docs | `ae1b9ea` | Docs updated: F5/F6 on-phone verification log, the widget crash fix recorded, push status corrected. |
+| Q20 | `fb9950a` | **Live user-reported bug, found and fixed in-session**: check-in photos taken with the camera were silently not saving (weight/measurements saved fine, no error, no popup). Root-caused via on-device logcat plus pulling and grepping the live `fitness_ark.db-wal` for `.jpg` paths before/after a save, to `BitmapUtils.decodeUriToBitmap` having silent `return null` paths with no logging — a transient failure to read the just-captured camera photo (likely a brief file-readiness race right after the camera hands back control) made `PhotoRepository.savePhoto`'s decoded-bitmap map empty, so it quietly did nothing. Fixed: `BitmapUtils` now logs every previously-silent failure path; `PhotoRepository.savePhoto(date, uris)` returns the set of angles that failed to decode instead of `Unit`; `CheckinViewModel.save()` surfaces that as an error ("Saved, but the X photo couldn't be read and was skipped. Try retaking it.") and keeps the user on the check-in screen instead of navigating away, so the thumbnail is still there to retry. This closes **Q20**. Reviewed (approved, no blocking issues) before commit. |
 
 ## Verification
 
@@ -108,17 +111,32 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 
 Still not verified for F5/F6: denying the notification permission (only "Allow" was tested), the reminder firing when today is *not* yet logged (today was already logged before testing began, so only the skip path was exercised directly), and that an app update doesn't drop the schedule.
 
+### Q20 bug: check-in photo silently not saving — found and fixed live, 2026-10-04
+
+The user hit this while using the app normally (not a planned test): taking a check-in photo and tapping Save appeared to do nothing — no popup, no error, and the photo was missing from both the dashboard and the Photos tab afterward.
+
+| Step | Result | Notes |
+|------|--------|-------|
+| Reproduce on the existing install | Confirmed | Weight saved; photo did not. |
+| Reproduce on a clean reinstall | Confirmed | Ruled out stale app state as the cause. |
+| Logcat around the Save tap | Inconclusive at first | No exception surfaced — `decodeUriToBitmap`'s silent-null paths didn't log anything before the fix. |
+| Direct SQLite inspection (`run-as` + `cat` the live `fitness_ark.db-wal`, grepped for `.jpg`) | **Confirmed the DB write** | Zero `.jpg` references before the fix, despite a `2026-10-04` row existing (the measurement) — proved the photo path specifically never reached the DB, not a display/caching issue. |
+| Added logging + user-facing error (commit `fb9950a`) | — | See Tier 3 history. |
+| Retest: take Front photo, Save | **Message shown**: "Saved, but the Front photo couldn't be read and was skipped. Try retaking it." | Confirmed the fix surfaces the real failure instead of hiding it. |
+| Retest: retake and Save again | **Pass** | DB re-inspected (same `run-as` + grep method): `.jpg` paths now present. Photo genuinely saved. |
+
+Root cause is believed to be a brief race where the camera-captured file isn't fully readable by the content resolver the instant control returns to the app — intermittent, not reproducible on every attempt (Side and Back succeeded on the same multi-photo test where Front failed). The fix doesn't eliminate the race (that's outside the app's control — it's the camera app's write timing), but it stops it from being silent, and keeps the user on the screen to retry instead of losing the attempt.
+
 ## Open items and next steps
 
-0. **F1–F6 are done**, reviewed, and committed. F1–F4 are also pushed (commits `d3c609c`, `70c64f6`, `fcd309d`). F5 and F6 (commits `39ca9ff`, `9db6166`, docs `e4f0a70`, crash fix `17e2e85`) are committed but **not yet pushed** — local `main` is 1 commit ahead of `origin/main`.
+0. **F1–F6 and Q20 are done**, reviewed, committed, and pushed. Local `main` matches `origin/main` at `fb9950a`.
 
-1. **Push `17e2e85` (and confirm the F5/F6 commits before it are pushed too)**, then look at the GitHub Actions run; fix the runner SDK or `gradlew` setup if it fails.
+1. Look at the GitHub Actions run; fix the runner SDK or `gradlew` setup if it fails (still not checked — see "Verification").
 2. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes).
-3. Decide on the remaining follow-ups (details in `ENHANCEMENT_PLAN.md`):
-   - **Q20** — tell the user when a picked photo can't be decoded on check-in save (currently skipped silently).
+3. Decide on the remaining follow-up:
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
 4. Tier 3 features: F1–F6 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
-5. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`.
+5. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`. Possibly also: a retry-with-backoff in `BitmapUtils.decodeUriToBitmap` if the Q20 decode race recurs often enough to be worth smoothing over rather than just reporting.
 
 ## Notes and gotchas
 
@@ -129,3 +147,6 @@ Still not verified for F5/F6: denying the notification permission (only "Allow" 
 - Rules from `CLAUDE.md`: don't commit until the user has reviewed with the review agent; don't run the review agent unless asked; small commits; ask before adding a dependency; describe UI changes in words.
 - The user's test phone runs Android 17 (API 37), ahead of this project's `compileSdk`/`targetSdk` (35) and the highest locally installed SDK platform (36.1 at the time of the F6 fix). A library built against an older Android can behave differently on it — the F6 widget crash (Glance 1.1.1's `PendingIntent` handling) was this kind of gap, not a bug in our code. Worth checking library versions against this if something behaves correctly in tests but misbehaves only on-device.
 - A widget's clickable areas in Glance (`actionStartActivity`, `actionRunCallback`) don't always align with their visual bounds when driving taps via `adb shell input tap` — coordinates that look centered on the button in a screenshot can land on an outer/wrapping clickable instead. When precision matters (e.g. confirming which specific button fired), it's more reliable to ask the user to tap it than to guess coordinates.
+- No `sqlite3` binary is available on the device or in this dev environment (checked both). To inspect the DB directly: `MSYS_NO_PATHCONV=1 adb shell run-as com.fitnessark cat /data/data/com.fitnessark/databases/fitness_ark.db-wal > local_file`, then grep the raw bytes as text (`grep -a -oE "pattern"`) for recognizable strings (dates, file paths) — crude but doesn't need a SQLite reader, and the WAL file often has the most recent uncommitted/recent writes even when the main `.db` file doesn't. `MSYS_NO_PATHCONV=1` is required in Git Bash or the absolute device path gets mangled into a Windows path.
+- `e.printStackTrace()` in Kotlin writes to `System.err`, which is easy to lose in a noisy `adb logcat` dump unless you specifically grep for `System.err`; prefer `Log.e(TAG, message, e)` so it's grep-able by tag and shows up with the rest of the app's logs.
+- A function that returns `null`/empty on failure without any logging (not even a caught exception) is effectively unobservable from outside the device — `BitmapUtils.decodeUriToBitmap` had two such silent paths before the Q20 fix. When a symptom is "nothing happens, no error," check for this pattern first before assuming the issue is higher up the call stack.

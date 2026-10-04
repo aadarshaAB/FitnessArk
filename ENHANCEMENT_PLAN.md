@@ -1,6 +1,6 @@
 # Fitness Ark — Enhancement Plan
 
-Review status: **Tier 1 (Q1–Q19, plus Q22) and all of Tier 2 (S1–S9) are complete.** Tier 3 **F1–F6 are also done** (F5/F6 committed but not yet pushed). Open items: Q20–Q21, and Tier 3 F7–F11, which still await a decision. See `PROGRESS.md` for the running log and what is verified on a device.
+Review status: **Tier 1 (Q1–Q20, Q22) and all of Tier 2 (S1–S9) are complete.** Tier 3 **F1–F6 are also done**, all pushed. Open items: Q21, and Tier 3 F7–F11, which still await a decision. See `PROGRESS.md` for the running log and what is verified on a device.
 
 **How to review:** fill in the **Decision** column for each item with `yes`, `no`, `later`, or a note. Items marked `yes` are then done one at a time, in small commits. `yes — done` means implemented and committed.
 
@@ -49,7 +49,7 @@ Ordered from most to least serious: crash, data loss, security, correctness, pol
 
 | # | What | Why it matters | Effort | Risk | Decision |
 |---|------|----------------|--------|------|----------|
-| Q20 | **Silent photo skip on check-in save.** In `CheckinViewModel.save()`, a picked photo that can't be decoded is dropped without a message, and the check-in still reports success. | You think the photo saved when it didn't. | S | low | |
+| Q20 | **Silent photo skip on check-in save.** In `CheckinViewModel.save()`, a picked photo that can't be decoded is dropped without a message, and the check-in still reports success. | You think the photo saved when it didn't. | S | low | yes — done (`fb9950a`). Found live: this is exactly what happened to you on 2026-10-04 (a camera photo silently failed to save). Fixed by surfacing a "couldn't be read, try retaking it" message and keeping the form open to retry; see `PROGRESS.md` for the root-cause writeup. |
 | Q21 | **Picked check-in photos lost on a full process kill.** `CheckinViewModel` holds the picked photo `Uri`s only in memory. Q13 saved the camera result, but not photos already added to the form. | Android can still kill the app while you fill in the form, and the added photos vanish. Fix: keep them in `SavedStateHandle`. | S | low | |
 | Q22 | **Chart x-offsets can be off by a day in DST time zones.** `MeasurementsViewModel.getChartData()` computes the day offset with `TimeUnit.MILLISECONDS.toDays(date - firstDate)`, which truncates; across a clock change a 23-hour "day" counts as 0 days, so two points can land on the same x or the labels shift. Fix: count calendar days (S8's `java.time` makes this simple). Not an issue in Nepal (no DST). The tests pin UTC to stay stable. | Wrong chart spacing for anyone in a DST zone. | S | low | yes — done with F3, committed (`70c64f6`) |
 
@@ -117,7 +117,7 @@ Ordered by value to you versus effort.
 3. ~~**S1 + S2:** database migration safety net and tests.~~ Done.
 4. ~~**Q8–Q19:** remaining quick wins.~~ Done (optionally Q20, Q21).
 5. ~~**S3 + S4**, then S5, S6, S8, S7, S9.~~ Done.
-6. ~~**Features F1 → F6** in table order.~~ Done, reviewed, committed (F5/F6 also verified on a phone; see `PROGRESS.md`). F5/F6 and their crash-fix commit are not yet pushed. **Next:** push, check CI, decide on Q20–Q21, then F7 onward (F7 needs a CameraX go-ahead first).
+6. ~~**Features F1 → F6** in table order.~~ Done, reviewed, committed, pushed (F5/F6 also verified on a phone; see `PROGRESS.md`). ~~Q20~~ done, found live and fixed. **Next:** check CI, decide on Q21, then F7 onward (F7 needs a CameraX go-ahead first).
 
 ## Main files affected
 - **Build and manifest:** `app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, `gradle/libs.versions.toml`, `gradle/wrapper/`
