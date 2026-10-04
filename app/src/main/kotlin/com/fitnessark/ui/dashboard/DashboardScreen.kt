@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -20,12 +21,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
+import com.fitnessark.util.MeasurementInput
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,6 +136,8 @@ fun DashboardScreen(
     }
 
     if (showWeightDialog) {
+        val parsedWeight = MeasurementInput.parse(weightInput)
+        val weightError = MeasurementInput.validate("weight", weightInput)
         AlertDialog(
             onDismissRequest = { showWeightDialog = false },
             title = { Text("Log Weight") },
@@ -141,14 +146,20 @@ fun DashboardScreen(
                     value = weightInput,
                     onValueChange = { weightInput = it },
                     label = { Text("Weight (kg)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = weightError != null,
+                    supportingText = weightError?.let { { Text(it) } },
                     singleLine = true
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    weightInput.toFloatOrNull()?.let { viewModel.updateWeight(it) }
-                    showWeightDialog = false
-                }) { Text("Save") }
+                TextButton(
+                    enabled = parsedWeight != null && weightError == null,
+                    onClick = {
+                        parsedWeight?.let { viewModel.updateWeight(it) }
+                        showWeightDialog = false
+                    }
+                ) { Text("Save") }
             },
             dismissButton = {
                 TextButton(onClick = { showWeightDialog = false }) { Text("Cancel") }

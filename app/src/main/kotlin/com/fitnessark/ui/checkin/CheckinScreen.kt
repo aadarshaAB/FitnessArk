@@ -41,6 +41,7 @@ import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.BitmapUtils
 import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
+import com.fitnessark.util.MeasurementInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -125,7 +126,22 @@ class CheckinViewModel(
         }
     }
 
+    /** Error text for a measurement field, or null when it is blank or valid. */
+    fun fieldError(key: String, state: CheckinUiState): String? = MeasurementInput.validate(
+        key,
+        when (key) {
+            "weight" -> state.weight; "chest"  -> state.chest
+            "waist"  -> state.waist;  "hips"   -> state.hips
+            "biceps" -> state.biceps; else     -> state.thighs
+        }
+    )
+
     fun save(context: Context) {
+        val current = _uiState.value
+        if (measurementKeys.any { fieldError(it, current) != null }) {
+            _uiState.update { it.copy(errorMessage = "Please fix the highlighted fields") }
+            return
+        }
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
@@ -135,12 +151,12 @@ class CheckinViewModel(
                     MeasurementEntity(
                         id     = existingId ?: java.util.UUID.randomUUID().toString(),
                         date   = date,
-                        weight = s.weight.toFloatOrNull() ?: 0f,
-                        chest  = s.chest.toFloatOrNull()  ?: 0f,
-                        waist  = s.waist.toFloatOrNull()  ?: 0f,
-                        hips   = s.hips.toFloatOrNull()   ?: 0f,
-                        biceps = s.biceps.toFloatOrNull() ?: 0f,
-                        thighs = s.thighs.toFloatOrNull() ?: 0f,
+                        weight = MeasurementInput.parse(s.weight) ?: 0f,
+                        chest  = MeasurementInput.parse(s.chest)  ?: 0f,
+                        waist  = MeasurementInput.parse(s.waist)  ?: 0f,
+                        hips   = MeasurementInput.parse(s.hips)   ?: 0f,
+                        biceps = MeasurementInput.parse(s.biceps) ?: 0f,
+                        thighs = MeasurementInput.parse(s.thighs) ?: 0f,
                         notes  = s.notes.ifEmpty { null }
                     )
                 )
@@ -170,6 +186,10 @@ class CheckinViewModel(
     }
 
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }
+
+    private companion object {
+        val measurementKeys = listOf("weight", "chest", "waist", "hips", "biceps", "thighs")
+    }
 }
 
 // ─── Pose slot data ──────────────────────────────────────────────────────────
@@ -314,10 +334,13 @@ fun CheckinScreen(
                                 "waist"  -> state.waist;  "hips"   -> state.hips
                                 "biceps" -> state.biceps; else     -> state.thighs
                             }
+                            val fieldError = viewModel.fieldError(key, state)
                             OutlinedTextField(
                                 value = value,
                                 onValueChange = { viewModel.update(key, it) },
                                 label = { Text("$label ($unit)") },
+                                isError = fieldError != null,
+                                supportingText = fieldError?.let { { Text(it) } },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
