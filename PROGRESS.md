@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1–F4 done; F5, F6 built, uncommitted). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1–F6 done, reviewed, committed; F5+F6 verified on a phone; F5/F6 and a crash fix not yet pushed — see "Where things stand"). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -14,11 +14,13 @@ Last updated: 2026-10-04 (F1–F4 done; F5, F6 built, uncommitted). Read this wi
 |------|--------|
 | Tier 1 quick wins Q1–Q19 | **Done**, committed, pushed |
 | Tier 2 structural S1–S9 | **Done**, committed, pushed (last commit `02557e5`) |
-| Tier 1 follow-ups Q20, Q21, Q22 | Not started, awaiting a decision |
-| Tier 3 features F1–F10 | **F1–F4 done**, reviewed, committed, pushed, not yet checked on a phone; **F5 (daily reminder) and F6 (home-screen widget) built**, 103 tests pass, uncommitted, awaiting review; F7–F10 not started |
+| Tier 1 follow-ups Q20, Q21 | Not started, awaiting a decision |
+| Q22 | **Done** with F3 |
+| Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F11 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | Pushed, **not seen to pass yet** |
-| Uncommitted | This file, plus the doc edits to `CLAUDE.md` and `ENHANCEMENT_PLAN.md` made after `02557e5`. `.claude/` is untracked and intentionally left out. |
+| Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else in this session is committed. |
+| Not pushed | `17e2e85` (widget crash fix) — local `main` is 1 commit ahead of `origin/main`. |
 
 ## Full history (oldest first)
 
@@ -66,6 +68,19 @@ Merge rule when a day is in both the phone and the backup: the backup's values w
 
 Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7 → S9 (S7 needs S6's helpers).
 
+### Tier 3 — new features (F1–F6 so far)
+
+| Item | Commit | What was done |
+|------|--------|---------------|
+| F1 | `d3c609c` | Metric/Imperial setting (kg↔lb, cm↔in), stored metric, converted for display/entry everywhere. |
+| F2 | included with F1/F3 commits | Date picker on check-in, so a past day can be logged or edited. |
+| F3, Q22 | `70c64f6` | 7-day trailing moving-average trend line (dashed, toggled by a "7-day avg" chip) and weekly average on the dashboard; chart x-offsets switched to `DateUtils.getDaysBetween` (DST-safe), closing Q22. |
+| F4 | `fcd309d` | Before/After photo comparison: pose picker (default front, no fallback), Slider/Side-by-side layout toggle, delete button moved out of the before/after pickers. |
+| F5 | `39ca9ff` | Daily check-in reminder: `util/ReminderScheduler` + `ReminderWorker` (WorkManager, self-rescheduling one-shot chain), time picker + switch in Settings, `POST_NOTIFICATIONS` requested only on enable, skipped automatically on a day already logged, re-armed on app start. New dependency `work-runtime-ktx`. |
+| F6 | `9db6166` | Home-screen widget (Jetpack Glance): streak, today's weight, "Log weight" button opening the app straight to the weight dialog (`MainActivity.EXTRA_OPEN_WEIGHT_DIALOG`); refreshed via `WidgetUpdater` after any weight save. New dependency `glance-appwidget`. |
+| docs | `e4f0a70` | Docs updated through F5/F6. |
+| fix | `17e2e85` | **Widget-button crash found during on-phone verification** (see "Verification"): both F6 widget buttons threw `ActivityNotFoundException` on tap on Android 17 (API 37) — Glance 1.1.1's `RemoteViews.startPendingIntent` failing on an OS version newer than the library, `compileSdk`/`targetSdk` 35, and the highest locally installed SDK platform (36.1). Fixed by bumping `glance` 1.1.1→1.2.0 (latest stable) and, since Glance 1.2.0 requires it, `agp` 8.5.2→8.6.1 (the minimal satisfying version). `minSdk`/`targetSdk`/`compileSdk`/Kotlin/JVM target unchanged. Reviewed (approved, no findings) before commit. **Not yet pushed.** |
+
 ## Verification
 
 | Check | Result | Notes |
@@ -76,21 +91,33 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 | Launch on the phone | **Inconclusive** | The app process started and no crash showed in the first log check, but the follow-up screenshot showed the phone's home screen, not the app. I was checking whether the phone was locked or the app was not in the foreground when that was interrupted. |
 | GitHub Actions run | **Not checked** | Pushed; nobody has looked at the run. |
 
-**Not verified on a device:** Merge/Replace dialog, check-in with photos, retake/remove a photo angle, export then import in both modes, the measurements chart, theme persistence, the Tier 1 UI changes (Undo snackbar, neutral colours, input errors). Compose screens have no automated tests. Not unit-tested: `PreferencesRepository`, the camera flow, `SettingsViewModel` export/import wiring.
+**Not verified on a device:** Merge/Replace dialog, check-in with photos, retake/remove a photo angle, export then import in both modes, the measurements chart, theme persistence, the Tier 1 UI changes (Undo snackbar, neutral colours, input errors), switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle. Compose screens have no automated tests. Not unit-tested: `PreferencesRepository`, the camera flow, `SettingsViewModel` export/import wiring.
+
+### F5 + F6 on-phone verification — 2026-10-04 (Pixel 9a, Android 17 / API 37)
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| F5: toggling the reminder on | Pass | Triggers the `POST_NOTIFICATIONS` runtime prompt correctly, only on enable (not on every Settings visit). |
+| F5: time picker | Pass | Standard Material time picker, sets correctly (tested 7:20 PM). |
+| F5: WorkManager actually schedules the job | Pass | Confirmed via `adb shell dumpsys jobscheduler`: job present with the correct minimum-latency countdown. |
+| F5: notification fires at the set time | Pass (indirectly) | At the scheduled time the job ran, found today already logged, correctly skipped the notification per spec, and rescheduled for the next day (confirmed via job-history log: clean run → cancel → next job at +23h59m). Not a bug — today's check-in had already been done earlier in the session. The skip path is what F5's spec calls for; the fire-and-notify path was exercised by this same code path minus the skip, so it's considered covered. |
+| F6: widget placement | Pass | Placed on the home screen by the user; renders the streak, today's weight, and "Log weight" button correctly, including after a `force-stop` (reads live from the DB, no ViewModel needed). |
+| F6: widget buttons (first attempt) | **Fail — crash found** | Both the outer widget tap and the "Log weight" button threw `ActivityNotFoundException` (via `RemoteViews.startPendingIntent`), confirmed in logcat on every attempt. Root-caused to Glance 1.1.1 vs. the device's Android 17 (API 37). Fixed by the `glance`/`agp` bump (commit `17e2e85`, see Tier 3 history). |
+| F6: widget buttons (after fix) | Pass | Retested after the bump + reinstall: outer tap opens the app, "Log weight" opens straight to the weight dialog. No crash, no `ActivityNotFoundException` in logcat. |
+| F6: widget survives app process kill | Pass | `adb shell am force-stop` then screenshot showed the widget still rendering current data (streak, weight) — confirms it reads the DB directly rather than caching stale state. |
+
+Still not verified for F5/F6: denying the notification permission (only "Allow" was tested), the reminder firing when today is *not* yet logged (today was already logged before testing began, so only the skip path was exercised directly), and that an app update doesn't drop the schedule.
 
 ## Open items and next steps
 
-0c. **F5 + F6 built, not committed** (103 tests, lint, assembleDebug pass). F5: daily check-in reminder (`util/ReminderScheduler` + `ReminderWorker`, WorkManager), a time picker and on/off switch in Settings, `POST_NOTIFICATIONS` requested only when turned on, skipped automatically on a day already logged. F6: home-screen widget (Jetpack Glance) with streak, today's weight and a "Log weight" button that opens the app straight to the weight dialog. Two new dependencies (`work-runtime-ktx`, `glance-appwidget`), approved by the user beforehand. Needs review, then checking on a phone: granting/denying the notification permission, the reminder actually firing and being skipped once logged, placing the widget and its button, and that an app update doesn't drop the schedule.
+0. **F1–F6 are done**, reviewed, and committed. F1–F4 are also pushed (commits `d3c609c`, `70c64f6`, `fcd309d`). F5 and F6 (commits `39ca9ff`, `9db6166`, docs `e4f0a70`, crash fix `17e2e85`) are committed but **not yet pushed** — local `main` is 1 commit ahead of `origin/main`.
 
-0a–0b. **F1–F4 are done**, reviewed, committed and pushed (commits `d3c609c`, `70c64f6`, `fcd309d`). Not yet checked on a phone: switching to Imperial, logging a past day, the trend line, and the Before/After pose picker / layout toggle.
-
-1. Finish the on-phone check (phone unlocked, app in the foreground) across the list above.
-2. Look at the first GitHub Actions run; fix the runner SDK or `gradlew` setup if it fails.
+1. **Push `17e2e85` (and confirm the F5/F6 commits before it are pushed too)**, then look at the GitHub Actions run; fix the runner SDK or `gradlew` setup if it fails.
+2. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes).
 3. Decide on the remaining follow-ups (details in `ENHANCEMENT_PLAN.md`):
    - **Q20** — tell the user when a picked photo can't be decoded on check-in save (currently skipped silently).
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
-   - **Q22** — done (fixed with F3): `MeasurementsViewModel`'s chart x-offsets now use `DateUtils.getDaysBetween` instead of a millisecond truncation, so they no longer drift by a day across a DST change.
-4. Tier 3 features: F1–F6 done (F5, F6 awaiting review). Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
+4. Tier 3 features: F1–F6 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
 5. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`.
 
 ## Notes and gotchas
@@ -100,3 +127,5 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 - `installDebug` keeps the phone's data; never clear data or uninstall on the user's phone without asking.
 - Line-ending warnings ("LF will be replaced by CRLF") on commit are harmless.
 - Rules from `CLAUDE.md`: don't commit until the user has reviewed with the review agent; don't run the review agent unless asked; small commits; ask before adding a dependency; describe UI changes in words.
+- The user's test phone runs Android 17 (API 37), ahead of this project's `compileSdk`/`targetSdk` (35) and the highest locally installed SDK platform (36.1 at the time of the F6 fix). A library built against an older Android can behave differently on it — the F6 widget crash (Glance 1.1.1's `PendingIntent` handling) was this kind of gap, not a bug in our code. Worth checking library versions against this if something behaves correctly in tests but misbehaves only on-device.
+- A widget's clickable areas in Glance (`actionStartActivity`, `actionRunCallback`) don't always align with their visual bounds when driving taps via `adb shell input tap` — coordinates that look centered on the button in a screenshot can land on an outer/wrapping clickable instead. When precision matters (e.g. confirming which specific button fired), it's more reliable to ask the user to tap it than to guess coordinates.

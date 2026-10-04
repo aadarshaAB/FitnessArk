@@ -1,6 +1,6 @@
 # Fitness Ark — Enhancement Plan
 
-Review status: **Tier 1 (Q1–Q19) and all of Tier 2 (S1–S9) are complete, committed and pushed to `main`.** Open items: the Tier 1 follow-ups Q20–Q22 and all of Tier 3 (features F1–F10), which still await a decision. See `PROGRESS.md` for the running log and what is verified on a device.
+Review status: **Tier 1 (Q1–Q19, plus Q22) and all of Tier 2 (S1–S9) are complete.** Tier 3 **F1–F6 are also done** (F5/F6 committed but not yet pushed). Open items: Q20–Q21, and Tier 3 F7–F11, which still await a decision. See `PROGRESS.md` for the running log and what is verified on a device.
 
 **How to review:** fill in the **Decision** column for each item with `yes`, `no`, `later`, or a note. Items marked `yes` are then done one at a time, in small commits. `yes — done` means implemented and committed.
 
@@ -51,8 +51,7 @@ Ordered from most to least serious: crash, data loss, security, correctness, pol
 |---|------|----------------|--------|------|----------|
 | Q20 | **Silent photo skip on check-in save.** In `CheckinViewModel.save()`, a picked photo that can't be decoded is dropped without a message, and the check-in still reports success. | You think the photo saved when it didn't. | S | low | |
 | Q21 | **Picked check-in photos lost on a full process kill.** `CheckinViewModel` holds the picked photo `Uri`s only in memory. Q13 saved the camera result, but not photos already added to the form. | Android can still kill the app while you fill in the form, and the added photos vanish. Fix: keep them in `SavedStateHandle`. | S | low | |
-
-| Q22 | **Chart x-offsets can be off by a day in DST time zones.** `MeasurementsViewModel.getChartData()` computes the day offset with `TimeUnit.MILLISECONDS.toDays(date - firstDate)`, which truncates; across a clock change a 23-hour "day" counts as 0 days, so two points can land on the same x or the labels shift. Fix: count calendar days (S8's `java.time` makes this simple). Not an issue in Nepal (no DST). The tests pin UTC to stay stable. | Wrong chart spacing for anyone in a DST zone. | S | low | yes — done with F3 (uncommitted) |
+| Q22 | **Chart x-offsets can be off by a day in DST time zones.** `MeasurementsViewModel.getChartData()` computes the day offset with `TimeUnit.MILLISECONDS.toDays(date - firstDate)`, which truncates; across a clock change a 23-hour "day" counts as 0 days, so two points can land on the same x or the labels shift. Fix: count calendar days (S8's `java.time` makes this simple). Not an issue in Nepal (no DST). The tests pin UTC to stay stable. | Wrong chart spacing for anyone in a DST zone. | S | low | yes — done with F3, committed (`70c64f6`) |
 
 ---
 
@@ -95,15 +94,15 @@ Ordered by value to you versus effort.
 |---|------|----------------|--------|------|----------|
 | F1 | **Metric/Imperial setting** (kg ↔ lb, cm ↔ in) in Settings, saved with DataStore (set up in Q11). Data stays stored in metric and is converted when shown or entered: every screen, chart axis, comparison panel and the dashboard. Existing data needs no migration. Rounding note: the database rounds kg to 2 decimal places, which is accurate enough when values are shown to 1 decimal place. | You asked for it directly. | M | med (touches every screen that shows a number) | yes — done (reviewed, committed, pushed; not yet checked on a phone) |
 | F2 | **Log or edit past days.** Add a date picker when starting a check-in. The navigation already supports a date (`checkin?date=`), but nothing in the UI uses it. Needs Q2 and Q4. | Right now a missed day can't be logged afterwards. | S | low | yes — done (reviewed, committed, pushed; not yet checked on a phone) |
-| F3 | **Trend line.** Overlay a 7-day moving average on the weight chart (optionally on measurements too), and show the weekly average on the dashboard. | Smooths out day-to-day fluctuation, which suits neutral tracking. | S–M | low | |
-| F4 | **Better photo comparison.** Choose which angle to compare (today it always uses the front photo when available), add a side-by-side mode next to the slider, and move the delete buttons out of the before/after pickers. | The core of a progress-photo app. | S–M | low | |
-| F5 | **Daily reminder notification** at a time you choose, using WorkManager. Android 13+ requires the `POST_NOTIFICATIONS` permission. Skipped automatically if you've already checked in that day. | Helps consistency and your streak. | M | low | yes — built, uncommitted, not yet checked on a phone |
-| F6 | **Home-screen widget** (built with Jetpack Glance) showing your streak, today's weight, and a quick "log weight" button. | Log without opening the app. | M | low | yes — built, uncommitted, not yet checked on a phone |
+| F3 | **Trend line.** Overlay a 7-day moving average on the weight chart (optionally on measurements too), and show the weekly average on the dashboard. | Smooths out day-to-day fluctuation, which suits neutral tracking. | S–M | low | yes — done (reviewed, committed `70c64f6`; not yet checked on a phone) |
+| F4 | **Better photo comparison.** Choose which angle to compare (today it always uses the front photo when available), add a side-by-side mode next to the slider, and move the delete buttons out of the before/after pickers. | The core of a progress-photo app. | S–M | low | yes — done (reviewed, committed `fcd309d`; not yet checked on a phone) |
+| F5 | **Daily reminder notification** at a time you choose, using WorkManager. Android 13+ requires the `POST_NOTIFICATIONS` permission. Skipped automatically if you've already checked in that day. | Helps consistency and your streak. | M | low | yes — done, reviewed, committed (`39ca9ff`), **verified on a phone** 2026-10-04 (permission prompt, time picker, scheduling, skip-when-logged all confirmed; see `PROGRESS.md`). Not yet pushed. |
+| F6 | **Home-screen widget** (built with Jetpack Glance) showing your streak, today's weight, and a quick "log weight" button. | Log without opening the app. | M | low | yes — done, reviewed, committed (`9db6166`), **verified on a phone** 2026-10-04. A widget-button crash on Android 17 found during that check was fixed (Glance 1.1.1→1.2.0, AGP 8.5.2→8.6.1), reviewed, committed (`17e2e85`); both buttons retested working. Not yet pushed. |
 | F7 | **Pose "ghost" overlay camera.** An in-app camera (CameraX) that shows your previous photo of the same angle faintly (about 30% opacity) so you can line up the same pose. *Adds a new library (CameraX), so I'll ask before adding it.* | Consistent framing makes before/after comparisons reliable. | L | med | |
 | F8 | **Progress timelapse.** Build a GIF or MP4 from all photos of one angle over time. | Better photos and motivation. | L | low | |
 | F9 | **(Optional) Health Connect weight sync.** Automatically copy each weight entry into Health Connect (one-way). It isn't a quick addition: it needs the `connect-client` library, the `WRITE_WEIGHT` permission, and a screen explaining why the app wants the permission, which Health Connect requires. Google Fit's APIs are deprecated, so Fit isn't an option. **Body measurements can't be synced:** Health Connect has no data types for waist, chest, hips, biceps or thighs. | You said only if it's easy. It's moderate, so it's last and optional. | M | low–med | |
 | F10 | **Toggle button to view Dashboard Pic** When app is open the dashbaord picutre should be blureed for provacy reasona dn should have toggle button so when tohggle can view pic. The toggle can be eye button with cross on middle of blur pic | For establish provacy if app  mistakenly open other person can see half naked body image that is present in dashboard image| M | low | |
-|F11| **front Camera and 5 Sec Timer as take photo default**When User choose take photo option, the as a deafult fronmt camera and 5 sec timer should be apoplied show that user can just click the shtter button and get the phot taken. Should be applied in all 3 poses settings.|It weill save a lot of time ans hassle of  cicking 3 button after user choose take photo button.| M|low||
+| F11 | **front Camera and 5 Sec Timer as take photo default**When User choose take photo option, the as a deafult fronmt camera and 5 sec timer should be apoplied show that user can just click the shtter button and get the phot taken. Should be applied in all 3 poses settings.|It weill save a lot of time ans hassle of  cicking 3 button after user choose take photo button.| M | low | |
 **Dropped or put off based on your answers:**
 - Goal weight and direction (replaced by Q19).
 - App lock and blocking screenshots (`FLAG_SECURE`).
@@ -117,8 +116,8 @@ Ordered by value to you versus effort.
 2. ~~**Q2–Q7:** data-loss, security, and freeze/crash fixes.~~ Done.
 3. ~~**S1 + S2:** database migration safety net and tests.~~ Done.
 4. ~~**Q8–Q19:** remaining quick wins.~~ Done (optionally Q20, Q21).
-5. ~~**S3 + S4**, then S5, S6, S8, S7, S9.~~ Done. **Next:** decide on Q20–Q22, then start Tier 3 (F1 units is the one you asked for directly).
-6. **Features F1 → F10** in table order. F1 is unblocked now (Q11 and S6 are done).
+5. ~~**S3 + S4**, then S5, S6, S8, S7, S9.~~ Done.
+6. ~~**Features F1 → F6** in table order.~~ Done, reviewed, committed (F5/F6 also verified on a phone; see `PROGRESS.md`). F5/F6 and their crash-fix commit are not yet pushed. **Next:** push, check CI, decide on Q20–Q21, then F7 onward (F7 needs a CameraX go-ahead first).
 
 ## Main files affected
 - **Build and manifest:** `app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, `gradle/libs.versions.toml`, `gradle/wrapper/`
@@ -126,6 +125,7 @@ Ordered by value to you versus effort.
 - **Utilities:** `util/ZipUtils.kt`, `util/BitmapUtils.kt`, `util/ImageCompressor.kt`, `util/DateUtils.kt`, `util/FileUtils.kt`
 - **Screens:** `ui/measurements/MeasurementsScreen.kt` and `MeasurementsViewModel.kt` (defines the `Metric` enum), `ui/dashboard/*`, `ui/photos/*`, `ui/settings/*`
 - **Data and setup:** `data/local/AppDatabase.kt`, `data/local/entity/*`, `di/AppModule.kt`, `MainActivity.kt`
+- **F5/F6:** `util/ReminderScheduler.kt`, `util/ReminderWorker.kt`, `ui/widget/FitnessArkWidget.kt`, `util/WidgetUpdater.kt`
 
 ## How changes will be verified
 - **Build:** after Q17, `./gradlew assembleDebug lint testDebugUnitTest` passes from the command line.

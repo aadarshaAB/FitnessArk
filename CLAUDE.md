@@ -64,6 +64,7 @@ MVVM with a single Koin DI module, one Room database, and a bottom-nav Compose N
 
 - Test coverage is a start, not complete: 103 JVM tests cover streak, check-in saving, photo merging/deletion, backup staging + zip-slip + version check, merge/replace restore and rollback, date helpers, chart labels, dashboard change, input validation, DB migrations, and `PreferencesRepository` (theme/units/reminder settings). Not covered: UI/Compose screens (including the Merge/Replace dialog), the camera flow, `SettingsViewModel` export/import wiring, `ReminderWorker`'s notification path, and the Glance widget (none of these run under Robolectric's plain `Application`).
 - S6–S9 are built, unit-tested and pushed, but not yet confirmed working on a phone, and the GitHub Actions workflow has not been seen to pass. See `PROGRESS.md`.
+- F5 and F6 are built, reviewed, committed and confirmed working on a phone (Pixel 9a, Android 17), but not yet pushed to `origin/main`. On-device testing found Glance 1.1.1's widget `PendingIntent` handling incompatible with Android 17; fixed by bumping `glance` to 1.2.0 and `agp` to 8.6.1 (also committed, also not yet pushed). See `PROGRESS.md` for the full verification log.
 - `CheckinViewModel` keeps the photo `Uri`s you've picked in memory only; a full process kill while the form is open loses them. (The camera result itself is preserved via `rememberSaveable`.)
 - In `CheckinViewModel.save()`, a photo that can't be decoded is skipped without telling the user.
 
