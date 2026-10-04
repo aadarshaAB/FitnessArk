@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed; GitHub Actions CI checked and passing; F10 built and reviewed, about to be committed). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed; GitHub Actions CI checked and passing; F10 and F11 done and committed). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -17,11 +17,11 @@ Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verif
 | Q20 | **Done**, committed, pushed (`fb9950a`) — fixed live after the user hit it; see "Full history" and "Verification" |
 | Q21 | Not started, awaiting a decision |
 | Q22 | **Done** with F3 |
-| Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed, pushed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); **F10 built and reviewed**, about to be committed (see "Full history"); F7–F9, F11 not started |
+| Tier 3 features F1–F11 | **F1–F6, F10, F11 done**, reviewed, committed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F9 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | **Checked, passing** — every real push since S9 has succeeded (see "Verification") |
 | Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else is committed. |
-| Not pushed | F10 (`0fea14c`) and this docs update — local `main` is ahead of `origin/main`. |
+| Not pushed | F10 (`0fea14c`), its docs (`7934c52`, `9d83e61`), F11 (`6107aea`), and this docs update — local `main` is ahead of `origin/main`. |
 
 ## Full history (oldest first)
 
@@ -69,7 +69,7 @@ Merge rule when a day is in both the phone and the backup: the backup's values w
 
 Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7 → S9 (S7 needs S6's helpers).
 
-### Tier 3 — new features (F1–F6, F10 so far)
+### Tier 3 — new features (F1–F6, F10, F11 so far)
 
 | Item | Commit | What was done |
 |------|--------|---------------|
@@ -84,6 +84,7 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 | docs | `ae1b9ea` | Docs updated: F5/F6 on-phone verification log, the widget crash fix recorded, push status corrected. |
 | Q20 | `fb9950a` | **Live user-reported bug, found and fixed in-session**: check-in photos taken with the camera were silently not saving (weight/measurements saved fine, no error, no popup). Root-caused via on-device logcat plus pulling and grepping the live `fitness_ark.db-wal` for `.jpg` paths before/after a save, to `BitmapUtils.decodeUriToBitmap` having silent `return null` paths with no logging — a transient failure to read the just-captured camera photo (likely a brief file-readiness race right after the camera hands back control) made `PhotoRepository.savePhoto`'s decoded-bitmap map empty, so it quietly did nothing. Fixed: `BitmapUtils` now logs every previously-silent failure path; `PhotoRepository.savePhoto(date, uris)` returns the set of angles that failed to decode instead of `Unit`; `CheckinViewModel.save()` surfaces that as an error ("Saved, but the X photo couldn't be read and was skipped. Try retaking it.") and keeps the user on the check-in screen instead of navigating away, so the thumbnail is still there to retry. This closes **Q20**. Reviewed (approved, no blocking issues) before commit. |
 | F10 | `0fea14c` | **Dashboard photo privacy blur.** `LatestPhotoCard`'s progress-photo preview is blurred by default every time it enters composition (app launch, tab switch and back) — plain Compose state (`remember(photoPath)`), not persisted, so it can't accidentally stay "revealed". A centered eye icon button toggles it. Tapping the card body while still blurred reveals it instead of immediately navigating to the Photos tab (closing a tap-through gap a review found, where the unblurred photo was one tap away regardless of the blur); a second tap once revealed navigates as before. Switched to the existing `thumbnailPath` instead of decoding a full-res angle image just to blur it. `contentDescription` no longer announces "Latest photo" while hidden. No new dependency (`Modifier.blur()` is core Compose UI). Reviewed with the code-review agent (5 findings, all addressed) before commit. |
+| F11 | `6107aea` | **In-app camera, front lens + 5s timer default.** New `ui/camera/InAppCameraScreen` (CameraX) replaces the system camera app for pose photos — the system camera intent has no extras for lens choice or a timer, so this wasn't reachable without an in-app camera. Opens on the front lens with an auto-starting 5s countdown; the shutter button captures immediately, skipping the rest of the wait; a switch-camera button flips to the rear lens (restarting the countdown, since the framing point may change). Applied to both check-in's "Take Photo" flow and the Photos-tab "Retake" flow (extended there after a review flagged the inconsistency), so capture behavior is the same everywhere a pose photo is taken. `CAMERA` is requested at runtime the first time it's needed (paired with a genuine request, unlike the old pre-Q1 bug); denial falls back to the gallery picker. The camera route (`camera/{angle}`) is keyed by the actual `PhotoAngle`, not a separately-tracked "pending slot," so there's no state that can drift from what was actually opened. Capture failures now surface a user-facing error and delete their temp file instead of failing silently. New dependency: CameraX (`camera-core`/`camera2`/`lifecycle`/`view`), added with your explicit approval before any code was written. Reviewed with the code-review agent (10 findings — race conditions, missing error surfacing, the retake inconsistency, doc drift — all addressed) before commit. |
 
 ## Verification
 
@@ -136,12 +137,12 @@ Checked via the `gh` CLI, downloaded and authenticated in this session (installe
 
 ## Open items and next steps
 
-0. **F1–F6, F10 and Q20 are done**, reviewed and committed. F10 not yet pushed (see "Uncommitted"/"Not pushed" in the summary table). ~~Check the GitHub Actions run~~ done — all green, see "CI status".
+0. **F1–F6, F10, F11 and Q20 are done**, reviewed and committed. None of F10/F11 are pushed yet (see "Uncommitted"/"Not pushed" in the summary table). ~~Check the GitHub Actions run~~ done — all green, see "CI status".
 
-1. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes), and now **F10** (blur-by-default, eye toggle, tap-to-reveal-then-navigate).
+1. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes), and now **F10** (blur-by-default, eye toggle, tap-to-reveal-then-navigate) and **F11** (in-app camera: front lens default, 5s timer/tap-to-skip, camera-switch, both the check-in and retake flows, CAMERA permission grant/deny).
 2. Decide on the remaining follow-up:
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
-3. Tier 3 features: F1–F6, F10 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first; now commented out of `ENHANCEMENT_PLAN.md` pending a decision), F8 timelapse, F9 optional Health Connect (also commented out, pending a decision), F11 front camera + 5 s timer as take-photo default.
+3. Tier 3 features: F1–F6, F10, F11 done — CameraX is now a dependency (added for F11 with approval), so **F7** (ghost-overlay camera) can reuse the same `InAppCameraScreen` foundation if picked back up; it's still commented out of `ENHANCEMENT_PLAN.md` pending a decision, as is F9 (optional Health Connect). Remaining: F7, F8 timelapse, F9.
 4. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`, the two CI deprecation warnings (setup-java@v5, Ubuntu 26 migration 2026-10-19). Possibly also: a retry-with-backoff in `BitmapUtils.decodeUriToBitmap` if the Q20 decode race recurs often enough to be worth smoothing over rather than just reporting.
 
 ## Notes and gotchas
