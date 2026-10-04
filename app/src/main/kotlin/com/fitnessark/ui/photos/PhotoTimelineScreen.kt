@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.fitnessark.data.local.entity.PhotoEntity
+import com.fitnessark.data.model.PhotoAngle
+import com.fitnessark.data.model.pathFor
 import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
@@ -85,13 +87,16 @@ fun PhotoTimelineScreen(
                         photos      = state.photos,
                         beforePhoto = state.beforePhoto,
                         afterPhoto  = state.afterPhoto,
+                        angle       = state.compareAngle,
+                        layout      = state.compareLayout,
+                        onAngleChange  = viewModel::setCompareAngle,
+                        onLayoutChange = viewModel::setCompareLayout,
                         onSetBefore = { id ->
                             viewModel.setBeforeAfterPhotos(id, state.afterPhoto?.id ?: "")
                         },
                         onSetAfter  = { id ->
                             viewModel.setBeforeAfterPhotos(state.beforePhoto?.id ?: "", id)
                         },
-                        onDeletePhoto = { id -> showDeleteDialog = id },
                         modifier    = Modifier.weight(1f)
                     )
                 } else {
@@ -218,10 +223,33 @@ fun BeforeAfterView(
     afterPhoto:  PhotoEntity?,
     onSetBefore: (String) -> Unit,
     onSetAfter:  (String) -> Unit,
-    onDeletePhoto: (String) -> Unit,
+    angle:       PhotoAngle,
+    layout:      ComparisonLayout,
+    onAngleChange:  (PhotoAngle) -> Unit,
+    onLayoutChange: (ComparisonLayout) -> Unit,
     modifier:    Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
+        // Which pose to compare, and how to lay the two photos out
+        LazyRow(
+            contentPadding        = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(PhotoAngle.entries.toList()) { a ->
+                FilterChip(
+                    selected = angle == a,
+                    onClick  = { onAngleChange(a) },
+                    label    = { Text(a.label) }
+                )
+            }
+            items(ComparisonLayout.entries.toList()) { l ->
+                FilterChip(
+                    selected = layout == l,
+                    onClick  = { onLayoutChange(l) },
+                    label    = { Text(l.label) }
+                )
+            }
+        }
         Row(
             Modifier
                 .fillMaxWidth()
@@ -253,24 +281,13 @@ fun BeforeAfterView(
                         photos.forEach { p ->
                             DropdownMenuItem(
                                 text    = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(DateUtils.formatDate(p.date))
-                                        IconButton(
-                                            onClick = { onDeletePhoto(p.id); expanded = false },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Delete",
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
+                                    val hasAngle = p.pathFor(angle) != null
+                                    Text(
+                                        if (hasAngle) DateUtils.formatDate(p.date)
+                                        else "${DateUtils.formatDate(p.date)} — no ${angle.label.lowercase()} photo",
+                                        color = if (hasAngle) MaterialTheme.colorScheme.onSurface
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 },
                                 onClick = { action(p.id); expanded = false }
                             )
@@ -281,14 +298,28 @@ fun BeforeAfterView(
         }
 
         if (beforePhoto != null && afterPhoto != null) {
-            SliderComparisonView(
-                beforePhoto = beforePhoto,
-                afterPhoto  = afterPhoto,
-                modifier    = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            )
+            val comparisonModifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+            val beforePath = beforePhoto.pathFor(angle)
+            val afterPath  = afterPhoto.pathFor(angle)
+            when {
+                layout == ComparisonLayout.SIDE_BY_SIDE -> SideBySideView(
+                    before = beforePhoto, after = afterPhoto, angle = angle, modifier = comparisonModifier
+                )
+                // A slider needs both images; say which one is missing instead of showing another pose
+                beforePath == null || afterPath == null -> MissingAngleMessage(
+                    missing = listOfNotNull(
+                        beforePhoto.takeIf { beforePath == null },
+                        afterPhoto.takeIf { afterPath == null }
+                    ),
+                    angle = angle, modifier = comparisonModifier
+                )
+                else -> SliderComparisonView(
+                    beforePath = beforePath, afterPath = afterPath, modifier = comparisonModifier
+                )
+            }
         } else {
             Box(
                 Modifier
@@ -310,15 +341,12 @@ fun BeforeAfterView(
 
 @Composable
 private fun SliderComparisonView(
-    beforePhoto: PhotoEntity,
-    afterPhoto:  PhotoEntity,
-    modifier:    Modifier = Modifier
+    beforePath: String,
+    afterPath:  String,
+    modifier:   Modifier = Modifier
 ) {
     var sliderFraction by remember { mutableFloatStateOf(0.5f) }
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
-
-    val beforePath = beforePhoto.frontPhotoPath ?: beforePhoto.sidePhotoPath ?: beforePhoto.backPhotoPath
-    val afterPath  = afterPhoto.frontPhotoPath  ?: afterPhoto.sidePhotoPath  ?: afterPhoto.backPhotoPath
 
     Box(
         modifier = modifier
@@ -404,6 +432,76 @@ private fun SliderComparisonView(
         ) {
             Text("AFTER", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Color.White)
         }
+    }
+}
+
+@Composable
+private fun SideBySideView(
+    before:   PhotoEntity,
+    after:    PhotoEntity,
+    angle:    PhotoAngle,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("BEFORE" to before, "AFTER" to after).forEach { (label, photo) ->
+            val path = photo.pathFor(angle)
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (path != null) {
+                    AsyncImage(
+                        model              = path,
+                        contentDescription = "$label ${angle.label.lowercase()} photo",
+                        contentScale       = ContentScale.Fit,
+                        modifier           = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        "No ${angle.label.lowercase()} photo",
+                        style     = MaterialTheme.typography.bodySmall,
+                        color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier  = Modifier.padding(8.dp)
+                    )
+                }
+                Surface(
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                    color = Color.Black.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        "$label · ${DateUtils.formatDateShort(photo.date)}",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissingAngleMessage(
+    missing:  List<PhotoEntity>,
+    angle:    PhotoAngle,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Text(
+            "No ${angle.label.lowercase()} photo for " +
+                missing.joinToString(" or ") { DateUtils.formatDate(it.date) } +
+                ". Pick another pose or day, or use Side by side.",
+            style     = MaterialTheme.typography.bodyMedium,
+            color     = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier  = Modifier.padding(32.dp)
+        )
     }
 }
 

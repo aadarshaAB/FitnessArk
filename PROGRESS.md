@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1, F2 done). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1, F2 done; F3, F4 built, uncommitted). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -15,7 +15,7 @@ Last updated: 2026-10-04 (F1, F2 done). Read this with `CLAUDE.md` (how the code
 | Tier 1 quick wins Q1–Q19 | **Done**, committed, pushed |
 | Tier 2 structural S1–S9 | **Done**, committed, pushed (last commit `02557e5`) |
 | Tier 1 follow-ups Q20, Q21, Q22 | Not started, awaiting a decision |
-| Tier 3 features F1–F10 | **F1 (units) and F2 (past days) done**, reviewed, committed, pushed, not yet checked on a phone; F3–F10 not started |
+| Tier 3 features F1–F10 | **F1 (units) and F2 (past days) done**, reviewed, committed, pushed, not yet checked on a phone; F3 (trend line) built, 94 tests pass, uncommitted, awaiting review; F4 (photo comparison) built, uncommitted; F5–F10 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | Pushed, **not seen to pass yet** |
 | Uncommitted | This file, plus the doc edits to `CLAUDE.md` and `ENHANCEMENT_PLAN.md` made after `02557e5`. `.claude/` is untracked and intentionally left out. |
@@ -79,6 +79,9 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 **Not verified on a device:** Merge/Replace dialog, check-in with photos, retake/remove a photo angle, export then import in both modes, the measurements chart, theme persistence, the Tier 1 UI changes (Undo snackbar, neutral colours, input errors). Compose screens have no automated tests. Not unit-tested: `PreferencesRepository`, the camera flow, `SettingsViewModel` export/import wiring.
 
 ## Open items and next steps
+
+0b. **F4 built, not committed** (96 tests, lint, assembleDebug pass): Before/After mode has a Front/Side/Back pose picker, a Slider / Side by side layout, and no delete buttons in the date pickers. Not checked on a phone.
+0a. **F3 built, not committed** (94 tests, lint, assembleDebug pass): dashed 7-day moving-average line on the Progress chart (chip "7-day avg", on by default), "7-day average" line on the dashboard card. Also fixed Q22 (chart x-offsets now count calendar days). Needs review, then an on-phone check.
 
 0. **F1 + F2 are done** (82 tests, lint and assembleDebug pass; code-reviewer agent approved after one fix: an empty unit in the dashboard weight dialog label). F1: `UnitSystem` setting (Settings > Units, DataStore), conversion on every screen, typed values converted back to metric. F2: tappable date badge + date picker on the check-in screen (no future days). Still needs an on-phone check (switch to Imperial and see every screen; log a past day).
 

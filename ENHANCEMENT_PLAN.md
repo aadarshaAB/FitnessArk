@@ -52,7 +52,7 @@ Ordered from most to least serious: crash, data loss, security, correctness, pol
 | Q20 | **Silent photo skip on check-in save.** In `CheckinViewModel.save()`, a picked photo that can't be decoded is dropped without a message, and the check-in still reports success. | You think the photo saved when it didn't. | S | low | |
 | Q21 | **Picked check-in photos lost on a full process kill.** `CheckinViewModel` holds the picked photo `Uri`s only in memory. Q13 saved the camera result, but not photos already added to the form. | Android can still kill the app while you fill in the form, and the added photos vanish. Fix: keep them in `SavedStateHandle`. | S | low | |
 
-| Q22 | **Chart x-offsets can be off by a day in DST time zones.** `MeasurementsViewModel.getChartData()` computes the day offset with `TimeUnit.MILLISECONDS.toDays(date - firstDate)`, which truncates; across a clock change a 23-hour "day" counts as 0 days, so two points can land on the same x or the labels shift. Fix: count calendar days (S8's `java.time` makes this simple). Not an issue in Nepal (no DST). The tests pin UTC to stay stable. | Wrong chart spacing for anyone in a DST zone. | S | low | |
+| Q22 | **Chart x-offsets can be off by a day in DST time zones.** `MeasurementsViewModel.getChartData()` computes the day offset with `TimeUnit.MILLISECONDS.toDays(date - firstDate)`, which truncates; across a clock change a 23-hour "day" counts as 0 days, so two points can land on the same x or the labels shift. Fix: count calendar days (S8's `java.time` makes this simple). Not an issue in Nepal (no DST). The tests pin UTC to stay stable. | Wrong chart spacing for anyone in a DST zone. | S | low | yes — done with F3 (uncommitted) |
 
 ---
 

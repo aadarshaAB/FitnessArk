@@ -12,12 +12,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class ComparisonLayout(val label: String) {
+    SLIDER("Slider"),
+    SIDE_BY_SIDE("Side by side")
+}
+
 data class PhotoTimelineUiState(
     val photos:         List<PhotoEntity> = emptyList(),
     val selectedPhoto:  PhotoEntity?      = null,
     val beforeAfterMode: Boolean          = false,
     val beforePhoto:    PhotoEntity?      = null,
     val afterPhoto:     PhotoEntity?      = null,
+    /** Which pose the before/after comparison shows for both photos. */
+    val compareAngle:   PhotoAngle        = PhotoAngle.FRONT,
+    val compareLayout:  ComparisonLayout  = ComparisonLayout.SLIDER,
     val isLoading:      Boolean           = true
 )
 
@@ -56,6 +64,10 @@ class PhotoTimelineViewModel(
             )
         }
     }
+
+    fun setCompareAngle(angle: PhotoAngle) = _uiState.update { it.copy(compareAngle = angle) }
+
+    fun setCompareLayout(layout: ComparisonLayout) = _uiState.update { it.copy(compareLayout = layout) }
 
     fun setBeforeAfterPhotos(beforeId: String, afterId: String) {
         val before = _uiState.value.photos.find { it.id == beforeId }
