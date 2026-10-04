@@ -7,6 +7,7 @@ import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.util.DateUtils
+import com.fitnessark.util.TrendLine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,8 @@ data class DashboardUiState(
     val latestPhoto: PhotoEntity? = null,
     val measurementCount: Int = 0,
     val weightChangeLast7Days: Float? = null,
+    /** Mean of the weights logged in the last 7 days (today included), or null if none. */
+    val weeklyAverageWeight: Float? = null,
     val isLoading: Boolean = true
 )
 
@@ -73,6 +76,9 @@ class DashboardViewModel(
             latestPhoto = latestPhoto,
             measurementCount = measurements.size,
             weightChangeLast7Days = weightChange,
+            weeklyAverageWeight = TrendLine.recentAverage(
+                measurements.mapNotNull { m -> m.weight?.let { TrendLine.Point(m.date, it) } }, now
+            ),
             isLoading = false
         )
     }

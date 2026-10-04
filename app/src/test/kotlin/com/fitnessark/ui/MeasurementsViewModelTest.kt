@@ -108,4 +108,51 @@ class MeasurementsViewModelTest {
         assertNull(vm.uiState.value.recentlyDeleted)
         assertEquals(0, repo.getMeasurementCount())
     }
+
+    @Test fun trend_line_is_a_moving_average_on_the_same_x_axis_as_the_chart() = runBlocking {
+        repo.saveMeasurement(MeasurementEntity(date = noon(4), weight = 70f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(3), weight = 72f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(1), weight = 74f))
+        val vm = viewModel()
+        vm.uiState.await { it.measurements.size == 3 }
+
+        val trend = vm.getTrendData()
+
+        assertEquals(vm.getChartData().map { it.x }, trend.map { it.x })
+        assertEquals(listOf(70f, 71f, 72f), trend.map { it.y })
+    }
+
+    @Test fun trend_line_near_the_left_edge_still_averages_older_entries_outside_the_range() = runBlocking {
+        repo.saveMeasurement(MeasurementEntity(date = noon(10), weight = 90f))   // outside the 7d range
+        repo.saveMeasurement(MeasurementEntity(date = noon(6), weight = 80f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 78f))
+        val vm = viewModel()
+        vm.uiState.await { it.measurements.size == 3 }
+        vm.changeDateRange(com.fitnessark.ui.measurements.DateRange.DAYS_7)
+
+        val trend = vm.getTrendData()
+
+        // visible: day-6 (window = days 12..6 -> 90,80) and day-0 (window = 6..0 -> 80,78)
+        assertEquals(listOf(85f, 79f), trend.map { it.y })
+    }
+
+    @Test fun there_is_no_trend_line_with_fewer_than_two_points() = runBlocking {
+        repo.saveMeasurement(MeasurementEntity(date = noon(1), weight = 70f))
+        val vm = viewModel()
+        vm.uiState.await { it.measurements.size == 1 }
+
+        assertTrue(vm.getTrendData().isEmpty())
+    }
+
+    @Test fun chart_x_offsets_count_calendar_days_across_a_clock_change() = runBlocking {
+        TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))     // US clocks change on 2026-03-08
+        fun dayAt(d: Int) = java.time.LocalDate.of(2026, 3, d).atTime(12, 0)
+            .atZone(java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        listOf(7, 8, 9).forEach { repo.saveMeasurement(MeasurementEntity(date = dayAt(it), weight = 70f)) }
+        val vm = viewModel()
+        vm.uiState.await { it.measurements.size == 3 }
+        vm.changeDateRange(com.fitnessark.ui.measurements.DateRange.ALL)
+
+        assertEquals(listOf(0f, 1f, 2f), vm.getChartData().map { it.x })       // was 0, 0, 1 (23-hour day)
+    }
 }

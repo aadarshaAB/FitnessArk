@@ -90,4 +90,21 @@ class DashboardViewModelTest {
 
         assertEquals(1, repo.getMeasurementCount())
     }
+
+    @Test fun weekly_average_covers_the_last_seven_days_and_skips_blank_weights() = runBlocking {
+        repo.saveMeasurement(MeasurementEntity(date = noon(8), weight = 100f))   // too old
+        repo.saveMeasurement(MeasurementEntity(date = noon(4), weight = 80f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(2), weight = null))
+        repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 78f))
+
+        val state = viewModel().uiState.await { !it.isLoading }
+
+        assertEquals(79f, state.weeklyAverageWeight!!, 0.001f)
+    }
+
+    @Test fun weekly_average_is_null_without_a_recent_weight() = runBlocking {
+        repo.saveMeasurement(MeasurementEntity(date = noon(20), weight = 80f))
+
+        assertNull(viewModel().uiState.await { !it.isLoading }.weeklyAverageWeight)
+    }
 }

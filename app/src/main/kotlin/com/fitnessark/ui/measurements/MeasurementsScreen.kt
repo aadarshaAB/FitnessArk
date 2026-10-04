@@ -38,6 +38,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
@@ -126,6 +127,15 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
                         label    = { Text(range.label) }
                     )
                 }
+                if (!state.showTableView) {
+                    item {
+                        FilterChip(
+                            selected = state.showTrend,
+                            onClick  = { viewModel.toggleTrend() },
+                            label    = { Text("7-day avg") }
+                        )
+                    }
+                }
             }
 
             if (state.isLoading) {
@@ -158,6 +168,7 @@ private fun ChartView(
     val chartData   = viewModel.getChartData()
     val chartLabels = viewModel.getChartLabels()
     val unitSystem  = LocalUnitSystem.current
+    val trendData   = if (state.showTrend) viewModel.getTrendData() else emptyList()
 
     if (filtered.isEmpty() || chartData.isEmpty()) {
         EmptyChartState(hasEntries = filtered.isNotEmpty(), metric = state.selectedMetric)
@@ -169,6 +180,7 @@ private fun ChartView(
         // ── Line chart ────────────────────────────────────────────────────
         MeasurementLineChart(
             entries     = chartData.map { Entry(it.x, state.selectedMetric.toDisplay(it.y, unitSystem), it.data) },
+            trendEntries = trendData.map { Entry(it.x, state.selectedMetric.toDisplay(it.y, unitSystem)) },
             labels      = chartLabels,
             metricLabel = "${state.selectedMetric.label} (${state.selectedMetric.unit(unitSystem)})",
             onValueSelected = { entryIndex ->
@@ -413,12 +425,14 @@ private fun MetricCell(
 fun MeasurementLineChart(
     entries:          List<Entry>,
     labels:           Map<Float, String>,
+    trendEntries:     List<Entry>,
     metricLabel:      String,
     onValueSelected:  (Int) -> Unit,
     onNothingSelected: () -> Unit,
     modifier:         Modifier = Modifier
 ) {
     val primaryColor      = CyanPrimary.toArgb()
+    val trendColor        = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f).toArgb()
     val onSurfaceColor    = MaterialTheme.colorScheme.onSurface.toArgb()
     val highlightColor    = MaterialTheme.colorScheme.tertiary.toArgb()
     val axisGridColor     = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f).toArgb()
@@ -484,7 +498,20 @@ fun MeasurementLineChart(
                 override fun getFormattedValue(value: Float): String =
                     labels[value] ?: ""
             }
-            chart.data                 = LineData(dataSet)
+            val dataSets = mutableListOf<ILineDataSet>(dataSet)
+            if (trendEntries.size >= 2) {
+                dataSets += LineDataSet(trendEntries, "7-day average").apply {
+                    color                   = trendColor
+                    lineWidth               = 2f
+                    enableDashedLine(14f, 8f, 0f)
+                    setDrawCircles(false)
+                    setDrawValues(false)
+                    mode                    = LineDataSet.Mode.CUBIC_BEZIER
+                    cubicIntensity          = 0.2f
+                    isHighlightEnabled      = false
+                }
+            }
+            chart.data                 = LineData(dataSets)
             chart.animateX(400)
             chart.invalidate()
         },

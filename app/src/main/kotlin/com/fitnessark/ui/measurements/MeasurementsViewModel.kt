@@ -6,6 +6,7 @@ import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.model.Metric
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.util.DateUtils
+import com.fitnessark.util.TrendLine
 import com.github.mikephil.charting.data.Entry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +43,7 @@ data class MeasurementsUiState(
     val selectedComparisonPoints:  Pair<String?, String?>  = Pair(null, null),
     val comparisonResult:          ComparisonResult?       = null,
     val showTableView:             Boolean                 = false,
+    val showTrend:                 Boolean                 = true,
     val isLoading:                 Boolean                 = true,
     val snackbarMessage:           String?                 = null,
     // last deleted entry, kept so the snackbar's "Undo" can put it back
@@ -80,7 +82,7 @@ class MeasurementsViewModel(
             // Use sequential index as X so MPAndroidChart spacing is uniform,
             // but tag each Entry with its list index so we can recover the
             // MeasurementEntity on tap (via Entry.data).
-            val dayOffset = TimeUnit.MILLISECONDS.toDays(m.date - firstDate).toFloat()
+            val dayOffset = DateUtils.getDaysBetween(firstDate, m.date).toFloat()
             Entry(dayOffset, getMetricValue(m, metric)!!, index)   // data = index
         }
     }
@@ -96,8 +98,27 @@ class MeasurementsViewModel(
         if (filtered.isEmpty()) return emptyMap()
         val firstDate = filtered.first().date
         return filtered.associate { m ->
-            val dayOffset = TimeUnit.MILLISECONDS.toDays(m.date - firstDate).toFloat()
+            val dayOffset = DateUtils.getDaysBetween(firstDate, m.date).toFloat()
             dayOffset to DateUtils.formatDateShort(m.date)
+        }
+    }
+
+    /**
+     * The 7-day moving average of the selected metric, as chart Entries on the same x-axis as
+     * [getChartData]. It is averaged over all logged days (not just the visible range), so the
+     * left edge of a short range is still a true average.
+     */
+    fun getTrendData(): List<Entry> {
+        val metric  = _uiState.value.selectedMetric
+        val visible = filteredMeasurementsWithValue(metric)
+        if (visible.size < 2) return emptyList()
+        val all = _uiState.value.measurements.sortedBy { it.date }
+            .mapNotNull { m -> getMetricValue(m, metric)?.let { TrendLine.Point(m.date, it) } }
+        val averages = TrendLine.movingAverage(all)
+        val averageByDate = all.indices.associate { all[it].date to averages[it] }
+        val firstDate = visible.first().date
+        return visible.map { m ->
+            Entry(DateUtils.getDaysBetween(firstDate, m.date).toFloat(), averageByDate.getValue(m.date))
         }
     }
 
@@ -173,6 +194,8 @@ class MeasurementsViewModel(
     }
 
     fun toggleView() = _uiState.update { it.copy(showTableView = !it.showTableView) }
+
+    fun toggleTrend() = _uiState.update { it.copy(showTrend = !it.showTrend) }
 
     fun toggleComparisonMode() = _uiState.update {
         it.copy(

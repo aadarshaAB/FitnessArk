@@ -100,6 +100,7 @@ fun DashboardScreen(
             // Progress Overview
             ProgressOverviewCard(
                 weightChange = state.weightChangeLast7Days,
+                weeklyAverage = state.weeklyAverageWeight,
                 unitSystem = unitSystem,
                 onClick = onNavigateToProgress
             )
@@ -252,7 +253,7 @@ fun TodayWeightCard(weight: Float?, unitSystem: UnitSystem, onEditClick: () -> U
 }
 
 @Composable
-fun ProgressOverviewCard(weightChange: Float?, unitSystem: UnitSystem, onClick: () -> Unit = {}) {
+fun ProgressOverviewCard(weightChange: Float?, weeklyAverage: Float?, unitSystem: UnitSystem, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -297,6 +298,13 @@ fun ProgressOverviewCard(weightChange: Float?, unitSystem: UnitSystem, onClick: 
                     fontWeight = FontWeight.SemiBold,
                     color = trendColor
                 )
+                if (weeklyAverage != null) {
+                    Text(
+                        text = "7-day average ${Metric.WEIGHT.format(weeklyAverage, unitSystem)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
