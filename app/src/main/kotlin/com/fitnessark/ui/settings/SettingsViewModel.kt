@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.data.repository.BackupRepository
 import com.fitnessark.data.repository.ImportMode
 import com.fitnessark.data.repository.MeasurementRepository
@@ -24,6 +25,7 @@ import java.io.File
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
+    val unitSystem: UnitSystem = UnitSystem.METRIC,
     val appSizeBytes: Long = 0L,
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
@@ -51,6 +53,11 @@ class SettingsViewModel(
                 _uiState.update { it.copy(themeMode = mode) }
             }
         }
+        viewModelScope.launch {
+            preferencesRepo.unitSystem.collect { system ->
+                _uiState.update { it.copy(unitSystem = system) }
+            }
+        }
     }
 
     fun refreshStats() {
@@ -63,6 +70,10 @@ class SettingsViewModel(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { preferencesRepo.setThemeMode(mode) }
+    }
+
+    fun setUnitSystem(system: UnitSystem) {
+        viewModelScope.launch { preferencesRepo.setUnitSystem(system) }
     }
 
     suspend fun exportData(): Result<File> {

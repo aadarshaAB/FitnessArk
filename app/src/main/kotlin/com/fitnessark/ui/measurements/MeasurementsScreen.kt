@@ -31,6 +31,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.model.Metric
 import com.fitnessark.ui.theme.CyanPrimary
+import com.fitnessark.ui.theme.LocalUnitSystem
 import com.fitnessark.util.DateUtils
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
@@ -156,6 +157,7 @@ private fun ChartView(
     val filtered    = viewModel.filteredMeasurements()
     val chartData   = viewModel.getChartData()
     val chartLabels = viewModel.getChartLabels()
+    val unitSystem  = LocalUnitSystem.current
 
     if (filtered.isEmpty() || chartData.isEmpty()) {
         EmptyChartState(hasEntries = filtered.isNotEmpty(), metric = state.selectedMetric)
@@ -166,9 +168,9 @@ private fun ChartView(
 
         // ── Line chart ────────────────────────────────────────────────────
         MeasurementLineChart(
-            entries     = chartData,
+            entries     = chartData.map { Entry(it.x, state.selectedMetric.toDisplay(it.y, unitSystem), it.data) },
             labels      = chartLabels,
-            metricLabel = "${state.selectedMetric.label} (${state.selectedMetric.unit})",
+            metricLabel = "${state.selectedMetric.label} (${state.selectedMetric.unit(unitSystem)})",
             onValueSelected = { entryIndex ->
                 viewModel.selectChartEntry(entryIndex)
             },
@@ -221,6 +223,7 @@ fun DayDetailCard(
     onDelete:       () -> Unit,
     getMetricValue: (Metric) -> Float?
 ) {
+    val unitSystem = LocalUnitSystem.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
@@ -290,14 +293,14 @@ fun DayDetailCard(
                 modifier          = Modifier.padding(bottom = 10.dp)
             ) {
                 Text(
-                    highlightValue?.let { "%.1f".format(it) } ?: "—",
+                    highlightValue?.let { "%.1f".format(selectedMetric.toDisplay(it, unitSystem)) } ?: "—",
                     style      = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color      = CyanPrimary
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    selectedMetric.unit,
+                    selectedMetric.unit(unitSystem),
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = CyanPrimary.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -323,7 +326,7 @@ fun DayDetailCard(
                         val value = getMetricValue(metric)
                         MetricCell(
                             label  = metric.label,
-                            value  = value?.let { "%.1f %s".format(it, metric.unit) } ?: "—",
+                            value  = metric.format(value, unitSystem),
                             muted  = value == null,
                             modifier = Modifier.weight(1f)
                         )
@@ -536,6 +539,7 @@ fun MeasurementsTable(
 
 @Composable
 fun MeasurementTableRow(m: MeasurementEntity) {
+    val unitSystem = LocalUnitSystem.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors   = CardDefaults.cardColors(
@@ -551,10 +555,10 @@ fun MeasurementTableRow(m: MeasurementEntity) {
             )
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("Weight" to (m.weight to "kg"), "Chest" to (m.chest to "cm"), "Waist" to (m.waist to "cm"))
-                    .forEach { (label, valueUnit) ->
-                        val (raw, unit) = valueUnit
-                        val value = raw?.let { "%.1f%s".format(it, unit) } ?: "—"
+                listOf(Metric.WEIGHT, Metric.CHEST, Metric.WAIST)
+                    .forEach { metric ->
+                        val label = metric.label
+                        val value = metric.format(metric.valueIn(m), unitSystem, separator = "")
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -565,10 +569,10 @@ fun MeasurementTableRow(m: MeasurementEntity) {
             }
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("Hips" to (m.hips to "cm"), "Biceps" to (m.biceps to "cm"), "Thighs" to (m.thighs to "cm"))
-                    .forEach { (label, valueUnit) ->
-                        val (raw, unit) = valueUnit
-                        val value = raw?.let { "%.1f%s".format(it, unit) } ?: "—"
+                listOf(Metric.HIPS, Metric.BICEPS, Metric.THIGHS)
+                    .forEach { metric ->
+                        val label = metric.label
+                        val value = metric.format(metric.valueIn(m), unitSystem, separator = "")
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label, style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -595,6 +599,7 @@ fun ComparisonModePanel(
     result:       ComparisonResult?,
     onSelect:     (String) -> Unit
 ) {
+    val unitSystem = LocalUnitSystem.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -629,15 +634,16 @@ fun ComparisonModePanel(
                         color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(4.dp))
                     listOf(
-                        "Weight" to it.weightDiff, "Chest"  to it.chestDiff,
-                        "Waist"  to it.waistDiff,  "Hips"   to it.hipsDiff,
-                        "Biceps" to it.bicepsDiff,  "Thighs" to it.thighsDiff
-                    ).forEach { (label, diff) ->
+                        Metric.WEIGHT to it.weightDiff, Metric.CHEST  to it.chestDiff,
+                        Metric.WAIST  to it.waistDiff,  Metric.HIPS   to it.hipsDiff,
+                        Metric.BICEPS to it.bicepsDiff, Metric.THIGHS to it.thighsDiff
+                    ).forEach { (metric, diff) ->
                         if (diff == null || diff == 0f) return@forEach
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(label, style = MaterialTheme.typography.bodySmall)
+                            Text(metric.label, style = MaterialTheme.typography.bodySmall)
                             // Neutral color + arrow: a change isn't "good" or "bad" without a goal.
-                            Text("${if (diff < 0) "↓" else "↑"} %+.1f".format(diff),
+                            Text("${if (diff < 0) "↓" else "↑"} %+.1f ${metric.unit(unitSystem)}"
+                                .format(metric.toDisplay(diff, unitSystem)),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface)

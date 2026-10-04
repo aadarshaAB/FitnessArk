@@ -1,5 +1,6 @@
 package com.fitnessark.util
 
+import com.fitnessark.TestSupport
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -73,5 +74,19 @@ class DateUtilsTest {
         assertEquals(10, DateUtils.getDaysBetween(a, b))
         assertEquals(10, DateUtils.getDaysBetween(b, a))
         assertTrue(DateUtils.getDaysBetween(a, a) == 0)
+    }
+
+    @Test fun picked_day_other_than_today_is_logged_at_local_noon_of_that_day() {
+        val now = TestSupport.noon(0)
+        val pickedUtc = DateUtils.pickerMillisOf(TestSupport.noon(5))
+        val ts = DateUtils.timestampForPickedDay(pickedUtc, now)
+        assertEquals(DateUtils.localDateKey(TestSupport.noon(5)), DateUtils.localDateKey(ts))
+        assertEquals(TestSupport.noon(5), ts)
+    }
+
+    @Test fun picking_today_keeps_the_current_time() {
+        val now = TestSupport.noon(0) + 3_600_000L        // 13:00 today
+        val ts = DateUtils.timestampForPickedDay(DateUtils.pickerMillisOf(now), now)
+        assertEquals(now, ts)
     }
 }

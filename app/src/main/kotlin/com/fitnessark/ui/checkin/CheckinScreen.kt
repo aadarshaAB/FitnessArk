@@ -107,6 +107,8 @@ fun CheckinScreen(
         pendingCameraSlot = null
     }
 
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+
     // Photo source dialog state
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
     var dialogTargetSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
@@ -140,18 +142,27 @@ fun CheckinScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Date badge
+            // Date badge — tap to log or edit another day
             Surface(
+                onClick = { showDatePicker = true },
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(
-                    DateUtils.formatDate(date),
+                Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                Text(
+                    DateUtils.formatDate(state.date),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.SemiBold
                 )
+                    Icon(Icons.Default.Edit, "Change date",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(14.dp))
+                }
             }
 
             // ── Measurements ────────────────────────────────────────────
@@ -165,7 +176,7 @@ fun CheckinScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         row.forEach { metric ->
-                            val unit = metric.unit
+                            val unit = metric.unit(state.unitSystem)
                             val fieldError = viewModel.fieldError(metric, state)
                             OutlinedTextField(
                                 value = state.text(metric),
@@ -253,6 +264,30 @@ fun CheckinScreen(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showDatePicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = DateUtils.pickerMillisOf(state.date),
+            selectableDates = object : SelectableDates {
+                // No future days: a check-in records what you measured
+                override fun isSelectableDate(utcTimeMillis: Long) =
+                    utcTimeMillis <= DateUtils.pickerMillisOf(System.currentTimeMillis())
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    enabled = pickerState.selectedDateMillis != null,
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { viewModel.setDate(DateUtils.timestampForPickedDay(it)) }
+                        showDatePicker = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = pickerState) }
     }
 
     // ── Photo source bottom-sheet dialog ──────────────────────────────────

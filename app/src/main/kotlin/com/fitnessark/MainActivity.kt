@@ -6,10 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
+import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.data.repository.PreferencesRepository
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.ui.navigation.FitnessArkNavHost
 import com.fitnessark.ui.theme.FitnessArkTheme
+import com.fitnessark.ui.theme.LocalUnitSystem
 import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
@@ -24,8 +26,11 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT  -> false
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
+            val unitSystem by preferencesRepo.unitSystem.collectAsState(initial = UnitSystem.METRIC)
             FitnessArkTheme(darkTheme = isDarkTheme) {
-                FitnessArkNavHost()
+                CompositionLocalProvider(LocalUnitSystem provides unitSystem) {
+                    FitnessArkNavHost()
+                }
             }
         }
     }

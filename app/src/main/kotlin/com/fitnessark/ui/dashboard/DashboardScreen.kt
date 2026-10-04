@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.fitnessark.data.model.Metric
+import com.fitnessark.data.model.UnitSystem
+import com.fitnessark.ui.theme.LocalUnitSystem
 import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.MeasurementInput
@@ -44,6 +46,15 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
+    // What the dialog was opened with, so an unchanged value isn't re-saved through a rounded lb round trip
+    var weightInitial by remember { mutableStateOf("") }
+    val unitSystem = LocalUnitSystem.current
+    val weightUnit = Metric.WEIGHT.unit(unitSystem)
+    fun openWeightDialog() {
+        weightInput = state.todayWeight?.let { Metric.WEIGHT.toInputText(it, unitSystem) } ?: ""
+        weightInitial = weightInput
+        showWeightDialog = true
+    }
 
     Scaffold(
         topBar = {
@@ -82,15 +93,14 @@ fun DashboardScreen(
             // Today's Weight Card
             TodayWeightCard(
                 weight = state.todayWeight,
-                onEditClick = {
-                    weightInput = state.todayWeight?.toString() ?: ""
-                    showWeightDialog = true
-                }
+                unitSystem = unitSystem,
+                onEditClick = { openWeightDialog() }
             )
 
             // Progress Overview
             ProgressOverviewCard(
                 weightChange = state.weightChangeLast7Days,
+                unitSystem = unitSystem,
                 onClick = onNavigateToProgress
             )
 
@@ -121,10 +131,7 @@ fun DashboardScreen(
                     Text("Full Check-in", color = MaterialTheme.colorScheme.onPrimary)
                 }
                 OutlinedButton(
-                    onClick = {
-                        weightInput = state.todayWeight?.toString() ?: ""
-                        showWeightDialog = true
-                    },
+                    onClick = { openWeightDialog() },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Log Weight Only")
@@ -136,8 +143,8 @@ fun DashboardScreen(
     }
 
     if (showWeightDialog) {
-        val parsedWeight = MeasurementInput.parse(weightInput)
-        val weightError = MeasurementInput.validate(Metric.WEIGHT, weightInput)
+        val parsedWeight = MeasurementInput.parseMetric(Metric.WEIGHT, weightInput, unitSystem)
+        val weightError = MeasurementInput.validate(Metric.WEIGHT, weightInput, unitSystem)
         AlertDialog(
             onDismissRequest = { showWeightDialog = false },
             title = { Text("Log Weight") },
@@ -145,7 +152,7 @@ fun DashboardScreen(
                 OutlinedTextField(
                     value = weightInput,
                     onValueChange = { weightInput = it },
-                    label = { Text("Weight (kg)") },
+                    label = { Text("Weight ($weightUnit)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = weightError != null,
                     supportingText = weightError?.let { { Text(it) } },
@@ -156,7 +163,7 @@ fun DashboardScreen(
                 TextButton(
                     enabled = parsedWeight != null && weightError == null,
                     onClick = {
-                        parsedWeight?.let { viewModel.updateWeight(it) }
+                        if (weightInput != weightInitial) parsedWeight?.let { viewModel.updateWeight(it) }
                         showWeightDialog = false
                     }
                 ) { Text("Save") }
@@ -209,7 +216,7 @@ fun StreakCard(streak: Int) {
 }
 
 @Composable
-fun TodayWeightCard(weight: Float?, onEditClick: () -> Unit) {
+fun TodayWeightCard(weight: Float?, unitSystem: UnitSystem, onEditClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -230,7 +237,7 @@ fun TodayWeightCard(weight: Float?, onEditClick: () -> Unit) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = weight?.let { "%.1f kg".format(it) } ?: "Not logged",
+                    text = weight?.let { Metric.WEIGHT.format(it, unitSystem) } ?: "Not logged",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (weight != null) MaterialTheme.colorScheme.onSurface
@@ -245,7 +252,7 @@ fun TodayWeightCard(weight: Float?, onEditClick: () -> Unit) {
 }
 
 @Composable
-fun ProgressOverviewCard(weightChange: Float?, onClick: () -> Unit = {}) {
+fun ProgressOverviewCard(weightChange: Float?, unitSystem: UnitSystem, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -281,7 +288,8 @@ fun ProgressOverviewCard(weightChange: Float?, onClick: () -> Unit = {}) {
                 val changeText = when {
                     weightChange == null -> "—"
                     weightChange == 0f   -> "No change"
-                    else                 -> "%+.1f kg".format(weightChange)
+                    else                 -> "%+.1f %s".format(
+                        Metric.WEIGHT.toDisplay(weightChange, unitSystem), Metric.WEIGHT.unit(unitSystem))
                 }
                 Text(
                     text = changeText,

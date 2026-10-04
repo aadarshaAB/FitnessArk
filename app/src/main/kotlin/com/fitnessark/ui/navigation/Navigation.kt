@@ -75,7 +75,7 @@ fun FitnessArkNavHost() {
             // ── Bottom nav destinations ────────────────────────────────
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
-                    onNavigateToCheckin  = { navController.navigate("checkin") },
+                    onNavigateToCheckin  = { navController.navigate("checkin?date=${System.currentTimeMillis()}") },
                     onNavigateToProgress = { navController.navigate(Screen.Measurements.route) },
                     onNavigateToPhotos   = { navController.navigate(Screen.Photos.route) }
                 )

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fitnessark.BuildConfig
+import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.data.repository.ImportMode
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.ui.theme.CyanPrimary
@@ -109,6 +110,38 @@ fun SettingsScreen(
                             onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) })
                         Text("System", style = MaterialTheme.typography.bodyMedium)
                     }
+                }
+            }
+
+            SettingsSectionHeader("Units")
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(Modifier.padding(8.dp)) {
+                    Text(
+                        "Measurement units",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        UnitSystem.entries.forEach { system ->
+                            RadioButton(selected = state.unitSystem == system,
+                                onClick = { viewModel.setUnitSystem(system) })
+                            Text("${system.label} (${system.hint})",
+                                style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.width(12.dp))
+                        }
+                    }
+                    Text(
+                        "Your data is always stored in kg and cm, so you can switch any time.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
             }
 

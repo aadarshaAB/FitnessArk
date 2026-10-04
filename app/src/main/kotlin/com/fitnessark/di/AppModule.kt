@@ -47,5 +47,7 @@ val appModule = module {
     viewModel { MeasurementsViewModel(get()) }
     viewModel { PhotoTimelineViewModel(get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get(), get(), get(), get()) }
-    viewModel { params -> CheckinViewModel(get(), get(), params.get()) }
+    viewModel { params ->
+        CheckinViewModel(get(), get(), get<PreferencesRepository>().unitSystem, params.get())
+    }
 }
