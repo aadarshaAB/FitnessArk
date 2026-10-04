@@ -1,6 +1,6 @@
 # Fitness Ark — Progress Log
 
-Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed; GitHub Actions CI checked and passing). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
+Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verified on a phone; Q20 fixed after a real user-hit bug, reviewed, committed, pushed; GitHub Actions CI checked and passing; F10 built and reviewed, about to be committed). Read this with `CLAUDE.md` (how the code works and the working rules) and `ENHANCEMENT_PLAN.md` (the item-by-item plan with reasons). Together they give the full context: **CLAUDE.md = how it is built, ENHANCEMENT_PLAN.md = what was planned and why, PROGRESS.md = what has actually been done, verified and what is next.**
 
 ## Product direction (from the user)
 
@@ -17,11 +17,11 @@ Last updated: 2026-10-04 (F1–F6 done, reviewed, committed, pushed; F5+F6 verif
 | Q20 | **Done**, committed, pushed (`fb9950a`) — fixed live after the user hit it; see "Full history" and "Verification" |
 | Q21 | Not started, awaiting a decision |
 | Q22 | **Done** with F3 |
-| Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed, pushed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); F7–F11 not started |
+| Tier 3 features F1–F11 | **F1–F6 done**, reviewed, committed, pushed; **F5 and F6 verified on a phone** (see "Verification"); a widget-button crash found during that check is fixed (commit `17e2e85`); **F10 built and reviewed**, about to be committed (see "Full history"); F7–F9, F11 not started |
 | On-phone verification of S6–S9 | **Not finished** (see "Verification") |
 | GitHub Actions CI | **Checked, passing** — every real push since S9 has succeeded (see "Verification") |
-| Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else is committed and pushed. |
-| Not pushed | Nothing — local `main` matches `origin/main`. |
+| Uncommitted | `.claude/` only (untracked, intentionally left out). Everything else is committed. |
+| Not pushed | F10 (`0fea14c`) and this docs update — local `main` is ahead of `origin/main`. |
 
 ## Full history (oldest first)
 
@@ -69,7 +69,7 @@ Merge rule when a day is in both the phone and the backup: the backup's values w
 
 Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7 → S9 (S7 needs S6's helpers).
 
-### Tier 3 — new features (F1–F6 so far)
+### Tier 3 — new features (F1–F6, F10 so far)
 
 | Item | Commit | What was done |
 |------|--------|---------------|
@@ -83,6 +83,7 @@ Order the S-items were actually done: S1, S2 → S3, S4, S5 → S8 → S6 → S7
 | fix | `17e2e85` | **Widget-button crash found during on-phone verification** (see "Verification"): both F6 widget buttons threw `ActivityNotFoundException` on tap on Android 17 (API 37) — Glance 1.1.1's `RemoteViews.startPendingIntent` failing on an OS version newer than the library, `compileSdk`/`targetSdk` 35, and the highest locally installed SDK platform (36.1). Fixed by bumping `glance` 1.1.1→1.2.0 (latest stable) and, since Glance 1.2.0 requires it, `agp` 8.5.2→8.6.1 (the minimal satisfying version). `minSdk`/`targetSdk`/`compileSdk`/Kotlin/JVM target unchanged. Reviewed (approved, no findings) before commit. |
 | docs | `ae1b9ea` | Docs updated: F5/F6 on-phone verification log, the widget crash fix recorded, push status corrected. |
 | Q20 | `fb9950a` | **Live user-reported bug, found and fixed in-session**: check-in photos taken with the camera were silently not saving (weight/measurements saved fine, no error, no popup). Root-caused via on-device logcat plus pulling and grepping the live `fitness_ark.db-wal` for `.jpg` paths before/after a save, to `BitmapUtils.decodeUriToBitmap` having silent `return null` paths with no logging — a transient failure to read the just-captured camera photo (likely a brief file-readiness race right after the camera hands back control) made `PhotoRepository.savePhoto`'s decoded-bitmap map empty, so it quietly did nothing. Fixed: `BitmapUtils` now logs every previously-silent failure path; `PhotoRepository.savePhoto(date, uris)` returns the set of angles that failed to decode instead of `Unit`; `CheckinViewModel.save()` surfaces that as an error ("Saved, but the X photo couldn't be read and was skipped. Try retaking it.") and keeps the user on the check-in screen instead of navigating away, so the thumbnail is still there to retry. This closes **Q20**. Reviewed (approved, no blocking issues) before commit. |
+| F10 | `0fea14c` | **Dashboard photo privacy blur.** `LatestPhotoCard`'s progress-photo preview is blurred by default every time it enters composition (app launch, tab switch and back) — plain Compose state (`remember(photoPath)`), not persisted, so it can't accidentally stay "revealed". A centered eye icon button toggles it. Tapping the card body while still blurred reveals it instead of immediately navigating to the Photos tab (closing a tap-through gap a review found, where the unblurred photo was one tap away regardless of the blur); a second tap once revealed navigates as before. Switched to the existing `thumbnailPath` instead of decoding a full-res angle image just to blur it. `contentDescription` no longer announces "Latest photo" while hidden. No new dependency (`Modifier.blur()` is core Compose UI). Reviewed with the code-review agent (5 findings, all addressed) before commit. |
 
 ## Verification
 
@@ -135,12 +136,12 @@ Checked via the `gh` CLI, downloaded and authenticated in this session (installe
 
 ## Open items and next steps
 
-0. **F1–F6 and Q20 are done**, reviewed, committed, and pushed. Local `main` matches `origin/main`. ~~Check the GitHub Actions run~~ done — all green, see "CI status".
+0. **F1–F6, F10 and Q20 are done**, reviewed and committed. F10 not yet pushed (see "Uncommitted"/"Not pushed" in the summary table). ~~Check the GitHub Actions run~~ done — all green, see "CI status".
 
-1. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes).
+1. Finish the remaining on-phone checks (see "Verification" above for what's covered and what isn't): notification-permission denial, the reminder's fire-and-notify path on a day not yet logged, surviving an app update without dropping the schedule, switching to Imperial, logging a past day, the trend line, the Before/After pose picker/layout toggle, S6–S9 items (Merge/Replace dialog, photo retake/remove, export/import round trip, theme persistence, Tier 1 UI changes), and now **F10** (blur-by-default, eye toggle, tap-to-reveal-then-navigate).
 2. Decide on the remaining follow-up:
    - **Q21** — keep picked photo `Uri`s across a process kill (easier now that the form state is `Map<PhotoAngle, Uri>`).
-3. Tier 3 features: F1–F6 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first), F8 timelapse, F9 optional Health Connect, F10 blur dashboard photo with an eye toggle, F11 front camera + 5 s timer as take-photo default.
+3. Tier 3 features: F1–F6, F10 done. Remaining, in order: **F7** ghost-overlay camera (adds CameraX, ask first; now commented out of `ENHANCEMENT_PLAN.md` pending a decision), F8 timelapse, F9 optional Health Connect (also commented out, pending a decision), F11 front camera + 5 s timer as take-photo default.
 4. Revisit later: automatic scheduled backups (manual export is the only backup because Android auto-backup is off), trimming the over-broad ProGuard keep rules, moving UI text to `strings.xml`, the two CI deprecation warnings (setup-java@v5, Ubuntu 26 migration 2026-10-19). Possibly also: a retry-with-backoff in `BitmapUtils.decodeUriToBitmap` if the Q20 decode race recurs often enough to be worth smoothing over rather than just reporting.
 
 ## Notes and gotchas
