@@ -1,11 +1,14 @@
 package com.fitnessark.ui
 
+import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import com.fitnessark.TestSupport
 import com.fitnessark.TestSupport.noon
 import com.fitnessark.await
 import com.fitnessark.data.local.AppDatabase
 import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.model.Metric
+import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
@@ -47,11 +50,16 @@ class CheckinViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(date: Long, units: UnitSystem = UnitSystem.METRIC) = CheckinViewModel(
+    private fun viewModel(
+        date: Long,
+        units: UnitSystem = UnitSystem.METRIC,
+        savedStateHandle: SavedStateHandle = SavedStateHandle()
+    ) = CheckinViewModel(
         measurements,
         PhotoRepository(db.photoDao(), ImageCompressor(), context),
         flowOf(units),
         WidgetUpdater(context),
+        savedStateHandle,
         date
     )
 
@@ -223,5 +231,60 @@ class CheckinViewModelTest {
         val state = vm.uiState.await { it.date == noon(6) }
         assertEquals("", state.text(Metric.WEIGHT))
         assertEquals("", state.notes)
+    }
+
+    // ── Q21: picked photos survive a process kill ──────────────────────────
+    // A real process kill replaces the ViewModel instance but Android restores the same
+    // SavedStateHandle's contents, so a fresh CheckinViewModel built from that same handle is
+    // exactly what a restored one looks like.
+
+    @Test fun picked_photo_uris_survive_a_simulated_process_kill() = runBlocking {
+        val handle = SavedStateHandle()
+        val date = noon(0)
+        val uri = Uri.parse("content://media/external/images/1")
+
+        viewModel(date, savedStateHandle = handle).setPhotoUri(PhotoAngle.FRONT, uri)
+
+        // A fresh instance sharing the same handle is what process-kill-and-restore looks like.
+        val restored = viewModel(date, savedStateHandle = handle)
+        assertEquals(uri, restored.uiState.value.photoUris[PhotoAngle.FRONT])
+    }
+
+    @Test fun removing_a_photo_uri_also_removes_it_from_the_saved_state() = runBlocking {
+        val handle = SavedStateHandle()
+        val date = noon(0)
+        val uri = Uri.parse("content://media/external/images/1")
+
+        viewModel(date, savedStateHandle = handle).apply {
+            setPhotoUri(PhotoAngle.FRONT, uri)
+            setPhotoUri(PhotoAngle.FRONT, null)
+        }
+
+        val restored = viewModel(date, savedStateHandle = handle)
+        assertNull(restored.uiState.value.photoUris[PhotoAngle.FRONT])
+    }
+
+    // Note: the "a photo failed to decode and was skipped" branch (save()'s `skipped.isNotEmpty()`
+    // path, which persists only the still-pending angles rather than the full set) has no test
+    // here — simulating a Uri that BitmapFactory genuinely fails to decode isn't straightforward
+    // under Robolectric's content-resolver shadow, and no other test in the codebase exercises
+    // PhotoRepository's Uri-based savePhoto() overload at all (PhotoRepositoryTest only uses the
+    // Bitmap overload). Verified by inspection instead: persistPhotoUris(s.photoUris.filterKeys
+    // { it in skipped }) keeps exactly the angles save() reports as skipped.
+
+    @Test fun a_successful_save_clears_the_saved_photo_state() = runBlocking {
+        val handle = SavedStateHandle()
+        val date = noon(0)
+        val uri = Uri.parse("content://media/external/images/1")
+
+        viewModel(date, savedStateHandle = handle).apply {
+            setPhotoUri(PhotoAngle.FRONT, uri)
+            update(Metric.WEIGHT, "70")
+            save()
+            uiState.await { it.saved }
+        }
+
+        // Nothing left to restore once the check-in is actually saved.
+        assertEquals(null, handle.get<Map<String, String>>("checkin_photo_uris"))
     }
 }

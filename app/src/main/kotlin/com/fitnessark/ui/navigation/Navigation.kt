@@ -171,7 +171,7 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
                 arguments = listOf(navArgument("angle") { type = NavType.StringType })
             ) { backStackEntry ->
                 val angle = backStackEntry.arguments?.getString("angle")
-                    ?.let { runCatching { PhotoAngle.valueOf(it) }.getOrNull() }
+                    ?.let { PhotoAngle.fromNameOrNull(it) }
                     ?: return@composable
                 InAppCameraScreen(
                     poseLabel  = angle.label,

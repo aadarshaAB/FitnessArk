@@ -13,6 +13,15 @@ enum class PhotoAngle(val label: String) {
 
     /** Lower-case name used in image file names, e.g. `front_<id>.jpg`. */
     val fileKey: String get() = name.lowercase()
+
+    companion object {
+        /**
+         * [PhotoAngle.valueOf] but null instead of throwing — for parsing an angle back out of
+         * somewhere it was serialized by [name] (a nav route arg, a SavedStateHandle entry),
+         * where the string could in principle be something else entirely.
+         */
+        fun fromNameOrNull(name: String): PhotoAngle? = runCatching { valueOf(name) }.getOrNull()
+    }
 }
 
 fun PhotoEntity.pathFor(angle: PhotoAngle): String? = when (angle) {

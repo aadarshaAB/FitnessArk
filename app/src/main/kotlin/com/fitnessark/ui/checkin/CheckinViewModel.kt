@@ -1,6 +1,7 @@
 package com.fitnessark.ui.checkin
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessark.data.local.entity.MeasurementEntity
@@ -42,10 +43,27 @@ class CheckinViewModel(
     private val photoRepo: PhotoRepository,
     private val unitSystemFlow: Flow<UnitSystem>,
     private val widgetUpdater: WidgetUpdater,
+    private val savedStateHandle: SavedStateHandle,
     date: Long
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CheckinUiState(date = date))
+    // Q21: photoUris is restored from here on process death. koin-androidx-compose supplies a
+    // real SavedStateHandle scoped to this screen's NavBackStackEntry (via CreationExtras,
+    // see AppModule.kt), which Android's Navigation component saves and restores across process
+    // death, not just configuration changes. Stored as angle-name -> uri-string, since a Uri
+    // itself isn't guaranteed Parcelable-stable across the Bundle round trip SavedStateHandle
+    // uses, but Uri.toString()/Uri.parse() is.
+    private val _uiState = MutableStateFlow(
+        CheckinUiState(
+            date = date,
+            photoUris = savedStateHandle.get<Map<String, String>>(PHOTO_URIS_KEY)
+                ?.mapNotNull { (angleName, uriString) ->
+                    PhotoAngle.fromNameOrNull(angleName)?.let { it to Uri.parse(uriString) }
+                }
+                ?.toMap()
+                .orEmpty()
+        )
+    )
     val uiState: StateFlow<CheckinUiState> = _uiState.asStateFlow()
 
     /** The saved entry the form was filled from, and the text it was filled with. */
@@ -55,6 +73,11 @@ class CheckinViewModel(
 
     init {
         loadDay(date)
+    }
+
+    private fun persistPhotoUris(photoUris: Map<PhotoAngle, Uri>) {
+        savedStateHandle[PHOTO_URIS_KEY] = photoUris.mapKeys { (angle, _) -> angle.name }
+            .mapValues { (_, uri) -> uri.toString() }
     }
 
     /** Fills the form from [day]'s saved entry, or blanks it if that day has none. */
@@ -97,7 +120,9 @@ class CheckinViewModel(
 
     fun setPhotoUri(angle: PhotoAngle, uri: Uri?) {
         _uiState.update {
-            it.copy(photoUris = if (uri == null) it.photoUris - angle else it.photoUris + (angle to uri))
+            val photoUris = if (uri == null) it.photoUris - angle else it.photoUris + (angle to uri)
+            persistPhotoUris(photoUris)
+            it.copy(photoUris = photoUris)
         }
     }
 
@@ -140,6 +165,12 @@ class CheckinViewModel(
                 } else emptySet()
                 widgetUpdater.refresh()
                 if (skipped.isNotEmpty()) {
+                    // The UI keeps showing every captured thumbnail as-is (including the ones that
+                    // did decode, so they don't flicker back to "not captured"), but only the
+                    // skipped angles still need to be *persisted* for a retry — the ones that
+                    // decoded are already safely in the DB, so re-persisting them would only make
+                    // a future restart redo work that already succeeded.
+                    persistPhotoUris(s.photoUris.filterKeys { it in skipped })
                     // Something still saved (the measurement, and any photo that did decode), but
                     // tell the user rather than silently dropping a photo they thought was saved.
                     val names = skipped.joinToString(", ") { angle -> angle.label }
@@ -150,6 +181,9 @@ class CheckinViewModel(
                         )
                     }
                 } else {
+                    // Everything saved and the screen is about to navigate away — nothing left to
+                    // restore if the process dies after this point.
+                    savedStateHandle[PHOTO_URIS_KEY] = null
                     _uiState.update { it.copy(isSaving = false, saved = true) }
                 }
             } catch (e: Exception) {
@@ -168,5 +202,10 @@ class CheckinViewModel(
     /** F11: shown when the in-app camera failed to save a capture. */
     fun cameraCaptureFailed() = _uiState.update {
         it.copy(errorMessage = "Couldn't take that photo. Please try again.")
+    }
+
+    private companion object {
+        /** Q21: SavedStateHandle key for the in-progress photoUris (survives a process kill). */
+        const val PHOTO_URIS_KEY = "checkin_photo_uris"
     }
 }

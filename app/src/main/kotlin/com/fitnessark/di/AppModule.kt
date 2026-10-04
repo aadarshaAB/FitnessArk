@@ -50,6 +50,12 @@ val appModule = module {
     viewModel { PhotoTimelineViewModel(get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get(), get(), get(), get()) }
     viewModel { params ->
-        CheckinViewModel(get(), get(), get<PreferencesRepository>().unitSystem, get(), params.get())
+        // Q21: get() here resolves to a real SavedStateHandle, not a plain DI binding —
+        // koin-androidx-compose's viewmodel factory creates one from the screen's
+        // NavBackStackEntry CreationExtras whenever a SavedStateHandle constructor param is
+        // requested this way, and that handle is what Android's Navigation component saves and
+        // restores across a full process kill, not just a configuration change.
+        // params.get() still supplies the runtime `date` arg (see CheckinViewModel kdoc).
+        CheckinViewModel(get(), get(), get<PreferencesRepository>().unitSystem, get(), get(), params.get())
     }
 }
