@@ -1,5 +1,6 @@
 package com.fitnessark.ui.settings
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fitnessark.BuildConfig
+import com.fitnessark.data.repository.ImportMode
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.ui.theme.CyanPrimary
 import kotlinx.coroutines.launch
@@ -30,6 +33,8 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showClearDialog by remember { mutableStateOf(false) }
+    // The backup file the user picked, waiting for them to choose merge or replace
+    var pendingImportUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -53,7 +58,7 @@ fun SettingsScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            viewModel.importData(uri)
+            pendingImportUri = uri
         }
     }
 
@@ -157,6 +162,43 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    pendingImportUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { pendingImportUri = null },
+            icon = { Icon(Icons.Default.FileDownload, null) },
+            title = { Text("Import backup") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Merge adds the backup to what's on this phone. If a day is in both, " +
+                        "the backup's values are used, and anything the backup doesn't have for " +
+                        "that day is kept.")
+                    Text("Replace deletes everything on this phone first, so you end up with " +
+                        "exactly what's in the backup.")
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.importData(uri, ImportMode.MERGE)
+                    pendingImportUri = null
+                }) { Text("Merge") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { pendingImportUri = null }) { Text("Cancel") }
+                    TextButton(
+                        onClick = {
+                            viewModel.importData(uri, ImportMode.REPLACE)
+                            pendingImportUri = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) { Text("Replace") }
+                }
+            }
+        )
     }
 
     if (showClearDialog) {

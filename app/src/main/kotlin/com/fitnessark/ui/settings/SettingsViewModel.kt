@@ -4,12 +4,15 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fitnessark.data.repository.BackupRepository
+import com.fitnessark.data.repository.ImportMode
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.data.repository.PreferencesRepository
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.util.FileUtils
 import com.fitnessark.util.ZipUtils
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,8 +35,10 @@ class SettingsViewModel(
     private val context: Context,
     private val measurementRepo: MeasurementRepository,
     private val photoRepo: PhotoRepository,
+    private val backupRepo: BackupRepository,
     private val zipUtils: ZipUtils,
-    private val preferencesRepo: PreferencesRepository
+    private val preferencesRepo: PreferencesRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -50,7 +55,7 @@ class SettingsViewModel(
 
     fun refreshStats() {
         viewModelScope.launch {
-            val size = withContext(Dispatchers.IO) { FileUtils.calculateAppSize(context) }
+            val size = withContext(ioDispatcher) { FileUtils.calculateAppSize(context) }
             val count = measurementRepo.getMeasurementCount()
             _uiState.update { it.copy(appSizeBytes = size, entryCount = count) }
         }
@@ -63,7 +68,7 @@ class SettingsViewModel(
     suspend fun exportData(): Result<File> {
         _uiState.update { it.copy(isExporting = true) }
         return try {
-            val zipFile = withContext(Dispatchers.IO) {
+            val zipFile = withContext(ioDispatcher) {
                 val measurements = measurementRepo.getMeasurementsBetween(0L, Long.MAX_VALUE)
                 val photos = photoRepo.getAllPhotosList()
                 zipUtils.exportData(context, measurements, photos)
@@ -79,7 +84,7 @@ class SettingsViewModel(
     fun writeExportToUri(zipFile: File, uri: Uri) {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     context.contentResolver.openOutputStream(uri)?.use { out ->
                         zipFile.inputStream().use { it.copyTo(out) }
                     }
@@ -89,40 +94,41 @@ class SettingsViewModel(
                 _uiState.update { it.copy(message = "Failed to save export: ${e.message}") }
             } finally {
                 // The copy in the user's chosen location is the real backup; drop our temp one.
-                withContext(Dispatchers.IO) { zipFile.delete() }
+                withContext(ioDispatcher) { zipFile.delete() }
                 refreshStats()
             }
         }
     }
 
-    fun importData(uri: Uri) {
+    fun importData(uri: Uri, mode: ImportMode) {
         viewModelScope.launch {
             _uiState.update { it.copy(isImporting = true) }
             try {
-                val result = withContext(Dispatchers.IO) {
+                val staged = withContext(ioDispatcher) {
                     val cacheFile = File(context.cacheDir, "import_${System.currentTimeMillis()}.zip")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        cacheFile.outputStream().use { input.copyTo(it) }
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            cacheFile.outputStream().use { input.copyTo(it) }
+                        }
+                        zipUtils.stageBackup(context, cacheFile)
+                    } finally {
+                        cacheFile.delete()
                     }
-
-                    val importResult = zipUtils.importData(context, cacheFile)
-                    cacheFile.delete()
-                    importResult
                 }
 
-                if (result.success) {
-                    result.measurements.forEach { measurementRepo.saveMeasurement(it) }
-                    result.photos.forEach { photoRepo.insertPhotoEntity(it) }
-                    _uiState.update {
-                        it.copy(
-                            isImporting = false,
-                            message = "Import successful: ${result.measurements.size} measurements, ${result.photos.size} photos"
-                        )
-                    }
-                    refreshStats()
-                } else {
-                    _uiState.update { it.copy(isImporting = false, message = "Import failed: ${result.error}") }
+                val backup = staged.backup
+                if (backup == null) {
+                    _uiState.update { it.copy(isImporting = false, message = "Import failed: ${staged.error}") }
+                    return@launch
                 }
+                val summary = backupRepo.restore(backup, mode)
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        message = "Import successful: ${summary.measurements} measurements, ${summary.photos} photos"
+                    )
+                }
+                refreshStats()
             } catch (e: Exception) {
                 _uiState.update { it.copy(isImporting = false, message = "Import error: ${e.message}") }
             }
@@ -134,7 +140,7 @@ class SettingsViewModel(
             try {
                 measurementRepo.deleteAllMeasurements()
                 photoRepo.deleteAllPhotos()
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     FileUtils.deleteDirectoryRecursively(File(context.filesDir, "photos"))
                 }
                 _uiState.update { it.copy(message = "All data cleared", entryCount = 0, appSizeBytes = 0L) }

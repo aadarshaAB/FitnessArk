@@ -10,13 +10,17 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-data class ImportResult(
+/** A backup read into [stagingDir]; its photo paths point at the staged files. */
+class StagedBackup(
     val measurements: List<MeasurementEntity>,
     val photos: List<PhotoEntity>,
-    val photoFiles: Map<String, ByteArray>,
-    val success: Boolean,
-    val error: String? = null
+    val stagingDir: File
 )
+
+/** Either a [backup] ready to restore, or an [error] explaining why it can't be. */
+data class ImportResult(val backup: StagedBackup?, val error: String? = null) {
+    val success: Boolean get() = backup != null
+}
 
 class ZipUtils {
 
@@ -72,7 +76,7 @@ class ZipUtils {
                 put("measurements", measurementsJson)
                 put("photos", photosJson)
                 put("exportedAt", System.currentTimeMillis())
-                put("version", 2)   // 2: blank measurements are null (1 used 0)
+                put("version", BACKUP_VERSION)   // 2: blank measurements are null (1 used 0)
             }
 
             zos.putNextEntry(ZipEntry("data.json"))
@@ -100,54 +104,37 @@ class ZipUtils {
         return zipFile
     }
 
-    fun importData(context: Context, zipFile: File): ImportResult {
+    /**
+     * Reads a backup ZIP into a staging folder without touching the live photos or database.
+     * Photo entries are streamed to disk one at a time (never held in memory); [StagedBackup]
+     * carries the parsed rows, whose photo paths point into the staging folder. Hand it to
+     * `BackupRepository.restore`, which moves the files into place and writes the rows in one
+     * transaction. On failure nothing is left behind and [ImportResult.error] says why.
+     */
+    fun stageBackup(context: Context, zipFile: File): ImportResult {
+        val staging = File(context.filesDir, STAGING_DIR)
+        FileUtils.deleteDirectoryRecursively(staging)
+        staging.mkdirs()
+
+        fun fail(message: String): ImportResult {
+            FileUtils.deleteDirectoryRecursively(staging)
+            return ImportResult(null, message)
+        }
+
         return try {
-            val measurements = mutableListOf<MeasurementEntity>()
-            val photos = mutableListOf<PhotoEntity>()
-            val photoFiles = mutableMapOf<String, ByteArray>()
+            var dataJson: String? = null
+            val stagedNames = mutableSetOf<String>()
 
             ZipInputStream(BufferedInputStream(FileInputStream(zipFile))).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
                     when {
-                        entry.name == "data.json" -> {
-                            val json = JSONObject(zis.readBytes().toString(Charsets.UTF_8))
-                            val mArray = json.getJSONArray("measurements")
-                            for (i in 0 until mArray.length()) {
-                                val obj = mArray.getJSONObject(i)
-                                measurements.add(
-                                    MeasurementEntity(
-                                        id = obj.getString("id"),
-                                        date = obj.getLong("date"),
-                                        weight = obj.loggedValue("weight"),
-                                        chest = obj.loggedValue("chest"),
-                                        waist = obj.loggedValue("waist"),
-                                        hips = obj.loggedValue("hips"),
-                                        biceps = obj.loggedValue("biceps"),
-                                        thighs = obj.loggedValue("thighs"),
-                                        notes = obj.getString("notes").ifEmpty { null }
-                                    )
-                                )
-                            }
-                            val pArray = json.getJSONArray("photos")
-                            for (i in 0 until pArray.length()) {
-                                val obj = pArray.getJSONObject(i)
-                                photos.add(
-                                    PhotoEntity(
-                                        id = obj.getString("id"),
-                                        date = obj.getLong("date"),
-                                        frontPhotoPath = obj.getString("frontPhotoPath").ifEmpty { null },
-                                        sidePhotoPath = obj.getString("sidePhotoPath").ifEmpty { null },
-                                        backPhotoPath = obj.getString("backPhotoPath").ifEmpty { null },
-                                        thumbnailPath = obj.getString("thumbnailPath").ifEmpty { null }
-                                    )
-                                )
-                            }
-                        }
-                        entry.name.startsWith("photos/") -> {
+                        entry.name == "data.json" -> dataJson = zis.readBytes().toString(Charsets.UTF_8)
+                        entry.name.startsWith("photos/") && !entry.isDirectory -> {
                             val fileName = entry.name.removePrefix("photos/")
                             if (fileName.isNotEmpty() && isSafeEntryName(fileName)) {
-                                photoFiles[fileName] = zis.readBytes()
+                                File(staging, fileName).outputStream().use { zis.copyTo(it) }
+                                stagedNames += fileName
                             }
                         }
                     }
@@ -156,41 +143,63 @@ class ZipUtils {
                 }
             }
 
-            // Restore photo files to internal storage
-            val photosDir = File(context.filesDir, "photos").apply { mkdirs() }
-            val photosDirCanonical = photosDir.canonicalFile
-            photoFiles.forEach { (name, bytes) ->
-                val target = File(photosDir, name).canonicalFile
-                if (target.parentFile == photosDirCanonical) {
-                    target.writeBytes(bytes)
-                }
-            }
-
-            // Update paths in photo entities
-            val updatedPhotos = photos.map { photo ->
-                photo.copy(
-                    frontPhotoPath = photo.frontPhotoPath?.let { p ->
-                        val name = File(p).name
-                        if (photoFiles.containsKey(name)) File(photosDir, name).absolutePath else null
-                    },
-                    sidePhotoPath = photo.sidePhotoPath?.let { p ->
-                        val name = File(p).name
-                        if (photoFiles.containsKey(name)) File(photosDir, name).absolutePath else null
-                    },
-                    backPhotoPath = photo.backPhotoPath?.let { p ->
-                        val name = File(p).name
-                        if (photoFiles.containsKey(name)) File(photosDir, name).absolutePath else null
-                    },
-                    thumbnailPath = photo.thumbnailPath?.let { p ->
-                        val name = File(p).name
-                        if (photoFiles.containsKey(name)) File(photosDir, name).absolutePath else null
-                    }
+            val json = JSONObject(dataJson ?: return fail("Not a Fitness Ark backup (data.json is missing)"))
+            val version = json.optInt("version", 1)
+            if (version > BACKUP_VERSION) {
+                return fail(
+                    "This backup was made by a newer version of Fitness Ark " +
+                        "(backup format $version). Update the app to restore it."
                 )
             }
 
-            ImportResult(measurements, updatedPhotos, photoFiles, success = true)
+            /** The staged copy of the photo file a backup path refers to, or null if the ZIP lacked it. */
+            fun staged(path: String): String? =
+                File(path).name.takeIf { it in stagedNames }?.let { File(staging, it).absolutePath }
+
+            val measurements = mutableListOf<MeasurementEntity>()
+            val mArray = json.getJSONArray("measurements")
+            for (i in 0 until mArray.length()) {
+                val obj = mArray.getJSONObject(i)
+                measurements.add(
+                    MeasurementEntity(
+                        id = obj.getString("id"),
+                        date = obj.getLong("date"),
+                        weight = obj.loggedValue("weight"),
+                        chest = obj.loggedValue("chest"),
+                        waist = obj.loggedValue("waist"),
+                        hips = obj.loggedValue("hips"),
+                        biceps = obj.loggedValue("biceps"),
+                        thighs = obj.loggedValue("thighs"),
+                        notes = obj.getString("notes").ifEmpty { null }
+                    )
+                )
+            }
+            val photos = mutableListOf<PhotoEntity>()
+            val pArray = json.getJSONArray("photos")
+            for (i in 0 until pArray.length()) {
+                val obj = pArray.getJSONObject(i)
+                fun path(key: String) = obj.getString(key).ifEmpty { null }?.let(::staged)
+                photos.add(
+                    PhotoEntity(
+                        id = obj.getString("id"),
+                        date = obj.getLong("date"),
+                        frontPhotoPath = path("frontPhotoPath"),
+                        sidePhotoPath = path("sidePhotoPath"),
+                        backPhotoPath = path("backPhotoPath"),
+                        thumbnailPath = path("thumbnailPath")
+                    )
+                )
+            }
+
+            ImportResult(StagedBackup(measurements, photos, staging))
         } catch (e: Exception) {
-            ImportResult(emptyList(), emptyList(), emptyMap(), success = false, error = e.message)
+            fail(e.message ?: "Couldn't read the backup")
         }
+    }
+
+    companion object {
+        /** Format written by [exportData]; a backup with a higher version is refused. */
+        const val BACKUP_VERSION = 2
+        private const val STAGING_DIR = "import_staging"
     }
 }
