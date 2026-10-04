@@ -159,4 +159,14 @@ class CheckinViewModel(
     }
 
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }
+
+    /** F11: shown when CAMERA is denied after tapping "Take Photo"; gallery is still available. */
+    fun cameraPermissionDenied() = _uiState.update {
+        it.copy(errorMessage = "Camera permission denied. You can still add a photo from your gallery.")
+    }
+
+    /** F11: shown when the in-app camera failed to save a capture. */
+    fun cameraCaptureFailed() = _uiState.update {
+        it.copy(errorMessage = "Couldn't take that photo. Please try again.")
+    }
 }

@@ -1,5 +1,7 @@
 package com.fitnessark.ui.photos
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -22,11 +24,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.model.pathFor
 import com.fitnessark.ui.theme.CyanPrimary
-import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -36,6 +38,11 @@ import org.koin.androidx.compose.koinViewModel
 fun PhotoDetailScreen(
     photoId:        String,
     onNavigateBack: () -> Unit,
+    onOpenInAppCamera: (PhotoAngle) -> Unit = {},
+    cameraResult: State<String?> = mutableStateOf(null),
+    onCameraResultConsumed: () -> Unit = {},
+    cameraFailed: State<Boolean> = mutableStateOf(false),
+    onCameraFailureConsumed: () -> Unit = {},
     viewModel:      PhotoTimelineViewModel = koinViewModel()
 ) {
     val state          by viewModel.uiState.collectAsState()
@@ -47,11 +54,13 @@ fun PhotoDetailScreen(
     var selectedTab     by remember { mutableIntStateOf(0) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Which angle is being retaken (null when none)
-    // rememberSaveable: the camera app often gets us killed in the background; these must survive that
+    // Which angle is being retaken (null when none) — also doubles as "which pose a pending
+    // in-app camera / gallery result belongs to" (F11), since the camera route itself carries
+    // the PhotoAngle rather than a separately-tracked "pending slot" that could drift from it.
+    // rememberSaveable: the in-app camera screen / gallery picker can get us killed in the
+    // background; this must survive that.
     var retakeAngle     by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
-    var cameraUri       by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     fun applyRetake(uri: Uri) {
         val angle = retakeAngle ?: return
@@ -63,13 +72,33 @@ fun PhotoDetailScreen(
         }
     }
 
-    // ── Camera launcher ──────────────────────────────────────────────────────
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { success ->
-        cameraUri?.let { if (success) applyRetake(it) }
+    LaunchedEffect(cameraResult.value) {
+        val uriString = cameraResult.value ?: return@LaunchedEffect
+        applyRetake(Uri.parse(uriString))
         retakeAngle = null
-        cameraUri = null
+        onCameraResultConsumed()
+    }
+    LaunchedEffect(cameraFailed.value) {
+        if (!cameraFailed.value) return@LaunchedEffect
+        retakeAngle = null
+        scope.launch { snackbarHost.showSnackbar("Couldn't take that photo. Please try again.") }
+        onCameraFailureConsumed()
+    }
+
+    // F11: CAMERA is requested at runtime the first time "Camera" is tapped here, same as on
+    // check-in. A denial falls back to "Gallery" for that attempt.
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val angle = retakeAngle
+        if (granted && angle != null) {
+            onOpenInAppCamera(angle)
+        } else {
+            retakeAngle = null
+            scope.launch {
+                snackbarHost.showSnackbar("Camera permission denied. You can still add a photo from your gallery.")
+            }
+        }
     }
 
     // ── Gallery launcher ─────────────────────────────────────────────────────
@@ -249,12 +278,18 @@ fun PhotoDetailScreen(
             title = { Text("Retake $angleLabel Photo") },
             text  = { Text("How would you like to add the new photo?") },
             confirmButton = {
+                // F11: opens the in-app camera (front lens + 5s timer by default), same as check-in
                 Button(
                     onClick = {
                         showSourceDialog = false
-                        val uri = CameraUtils.createTempCameraUri(context, "retake_${retakeAngle?.fileKey}")
-                        cameraUri = uri
-                        cameraLauncher.launch(uri)
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasPermission) {
+                            retakeAngle?.let { onOpenInAppCamera(it) }
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,

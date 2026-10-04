@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.*
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.fitnessark.data.model.PhotoAngle
+import com.fitnessark.ui.camera.InAppCameraScreen
 import com.fitnessark.ui.checkin.CheckinScreen
 import com.fitnessark.ui.dashboard.DashboardScreen
 import com.fitnessark.ui.measurements.MeasurementsScreen
@@ -112,7 +114,22 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
                     ?: System.currentTimeMillis()
                 CheckinScreen(
                     date           = date,
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenInAppCamera = { angle ->
+                        navController.navigate("camera/${angle.name}")
+                    },
+                    cameraResult = backStackEntry.savedStateHandle
+                        .getStateFlow<String?>(CAMERA_RESULT_KEY, null)
+                        .collectAsState(),
+                    onCameraResultConsumed = {
+                        backStackEntry.savedStateHandle[CAMERA_RESULT_KEY] = null
+                    },
+                    cameraFailed = backStackEntry.savedStateHandle
+                        .getStateFlow(CAMERA_FAILURE_KEY, false)
+                        .collectAsState(),
+                    onCameraFailureConsumed = {
+                        backStackEntry.savedStateHandle[CAMERA_FAILURE_KEY] = false
+                    }
                 )
             }
 
@@ -124,9 +141,62 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
                 val id = backStackEntry.arguments?.getString("id") ?: return@composable
                 PhotoDetailScreen(
                     photoId        = id,
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenInAppCamera = { angle ->
+                        navController.navigate("camera/${angle.name}")
+                    },
+                    cameraResult = backStackEntry.savedStateHandle
+                        .getStateFlow<String?>(CAMERA_RESULT_KEY, null)
+                        .collectAsState(),
+                    onCameraResultConsumed = {
+                        backStackEntry.savedStateHandle[CAMERA_RESULT_KEY] = null
+                    },
+                    cameraFailed = backStackEntry.savedStateHandle
+                        .getStateFlow(CAMERA_FAILURE_KEY, false)
+                        .collectAsState(),
+                    onCameraFailureConsumed = {
+                        backStackEntry.savedStateHandle[CAMERA_FAILURE_KEY] = false
+                    }
+                )
+            }
+
+            // ── In-app camera (F11) ─────────────────────────────────────
+            // The route arg is the PhotoAngle's own name — the single source of truth for which
+            // pose slot the result belongs to — not a separately-tracked "pending slot" in the
+            // caller, which could in principle drift from what the route actually opened for.
+            // The captured Uri is handed back via the caller's SavedStateHandle (Navigation-
+            // Compose's standard "return a result" pattern).
+            composable(
+                route     = "camera/{angle}",
+                arguments = listOf(navArgument("angle") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val angle = backStackEntry.arguments?.getString("angle")
+                    ?.let { runCatching { PhotoAngle.valueOf(it) }.getOrNull() }
+                    ?: return@composable
+                InAppCameraScreen(
+                    poseLabel  = angle.label,
+                    poseKey    = angle.fileKey,
+                    onCaptured = { uri ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set(CAMERA_RESULT_KEY, uri.toString())
+                        navController.popBackStack()
+                    },
+                    onCaptureFailed = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set(CAMERA_FAILURE_KEY, true)
+                        navController.popBackStack()
+                    },
+                    onCancel = { navController.popBackStack() }
                 )
             }
         }
     }
 }
+
+/** Key the in-app camera's result Uri is stored under in the caller's SavedStateHandle. */
+const val CAMERA_RESULT_KEY = "camera_captured_uri"
+
+/** Key set (to true) in the caller's SavedStateHandle when a capture attempt failed. */
+const val CAMERA_FAILURE_KEY = "camera_capture_failed"

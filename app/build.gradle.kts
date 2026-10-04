@@ -109,6 +109,12 @@ dependencies {
     // Glance (F6: home-screen widget)
     implementation(libs.androidx.glance.appwidget)
 
+    // CameraX (F11: in-app camera with front lens + timer default)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
     debugImplementation(libs.androidx.ui.tooling)
 
     // Tests

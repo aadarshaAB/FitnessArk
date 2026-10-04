@@ -8,6 +8,14 @@
     <!-- F5: daily check-in reminder notification. Requested at runtime from Settings (API 33+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      F11: in-app camera (CameraX) for pose capture, front lens + timer by default.
+      Unlike the old removed CAMERA declaration (Q1), this one is paired with a genuine runtime
+      request (see CheckinScreen) made only the first time "Take Photo" is tapped — declaring it
+      without requesting it is what made the system camera throw SecurityException before.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:name=".FitnessArkApp"
         android:allowBackup="false"

@@ -1,5 +1,7 @@
 package com.fitnessark.ui.checkin
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -28,11 +30,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.fitnessark.data.model.Metric
 import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.ui.theme.CyanPrimary
-import com.fitnessark.util.CameraUtils
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -68,6 +70,11 @@ private val poseSlots = listOf(
 fun CheckinScreen(
     date: Long,
     onNavigateBack: () -> Unit,
+    onOpenInAppCamera: (PhotoAngle) -> Unit = {},
+    cameraResult: State<String?> = mutableStateOf(null),
+    onCameraResultConsumed: () -> Unit = {},
+    cameraFailed: State<Boolean> = mutableStateOf(false),
+    onCameraFailureConsumed: () -> Unit = {},
     viewModel: CheckinViewModel = koinViewModel(parameters = { parametersOf(date) })
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -82,34 +89,9 @@ fun CheckinScreen(
         }
     }
 
-    // ── Camera URIs (one per pose, created fresh each time camera opens) ──
-    // rememberSaveable: the camera app often gets us killed in the background; these must survive that
-    var pendingCameraSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
-    var currentCameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success && currentCameraUri != null) {
-            pendingCameraSlot?.let { slot ->
-                viewModel.setPhotoUri(slot, currentCameraUri)
-            }
-        }
-        pendingCameraSlot = null
-        currentCameraUri = null
-    }
-
-    // Gallery fallback launchers (one per slot)
-    val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        uri?.let { pendingCameraSlot?.let { slot -> viewModel.setPhotoUri(slot, uri) } }
-        pendingCameraSlot = null
-    }
-
-    var showDatePicker by rememberSaveable { mutableStateOf(false) }
-
-    // Photo source dialog state
+    // Photo source dialog state — dialogTargetSlot also doubles as "which pose a pending in-app
+    // camera / gallery result belongs to", since the camera route itself carries the PhotoAngle
+    // (there's no separate "pending slot" to let drift from what was actually opened).
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
     var dialogTargetSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
 
@@ -117,6 +99,45 @@ fun CheckinScreen(
         dialogTargetSlot = slot
         showSourceDialog = true
     }
+
+    LaunchedEffect(cameraResult.value) {
+        val uriString = cameraResult.value ?: return@LaunchedEffect
+        dialogTargetSlot?.let { slot -> viewModel.setPhotoUri(slot, Uri.parse(uriString)) }
+        dialogTargetSlot = null
+        // Clears the backing SavedStateHandle entry so a later attempt doesn't replay this result.
+        onCameraResultConsumed()
+    }
+    LaunchedEffect(cameraFailed.value) {
+        if (!cameraFailed.value) return@LaunchedEffect
+        dialogTargetSlot = null
+        viewModel.cameraCaptureFailed()
+        onCameraFailureConsumed()
+    }
+
+    // F11: CAMERA is requested at runtime the first time "Take Photo" is tapped, not declared and
+    // left unrequested (that was the old Q1 bug). A denial falls back to "Choose from Gallery"
+    // for that attempt instead of silently doing nothing.
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val slot = dialogTargetSlot
+        if (granted && slot != null) {
+            onOpenInAppCamera(slot)
+        } else {
+            dialogTargetSlot = null
+            viewModel.cameraPermissionDenied()
+        }
+    }
+
+    // Gallery fallback launcher (one per slot)
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { dialogTargetSlot?.let { slot -> viewModel.setPhotoUri(slot, uri) } }
+        dialogTargetSlot = null
+    }
+
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -293,21 +314,28 @@ fun CheckinScreen(
     // ── Photo source bottom-sheet dialog ──────────────────────────────────
     if (showSourceDialog) {
         AlertDialog(
-            onDismissRequest = { showSourceDialog = false; pendingCameraSlot = null },
+            onDismissRequest = {
+                showSourceDialog = false
+                dialogTargetSlot = null
+            },
             title = {
                 val slotLabel = dialogTargetSlot?.label.orEmpty()
                 Text("Add $slotLabel Photo")
             },
             text = { Text("Choose how you'd like to add this photo.") },
             confirmButton = {
-                // Camera option
+                // Camera option (F11: opens the in-app camera, front lens + 5s timer by default)
                 Button(
                     onClick = {
                         showSourceDialog = false
-                        pendingCameraSlot = dialogTargetSlot
-                        val uri = CameraUtils.createTempCameraUri(context, "pose_${dialogTargetSlot?.fileKey}")
-                        currentCameraUri = uri
-                        cameraLauncher.launch(uri)
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasPermission) {
+                            dialogTargetSlot?.let { onOpenInAppCamera(it) }
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -324,7 +352,6 @@ fun CheckinScreen(
                 OutlinedButton(
                     onClick = {
                         showSourceDialog = false
-                        pendingCameraSlot = dialogTargetSlot
                         galleryLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
