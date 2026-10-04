@@ -8,10 +8,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -257,12 +258,16 @@ fun ProgressOverviewCard(weightChange: Float?, onClick: () -> Unit = {}) {
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val isPositive = (weightChange ?: 0f) > 0
-            val trendColor = if (isPositive) MaterialTheme.colorScheme.error
-            else MaterialTheme.colorScheme.primary
+            // Neutral on purpose: a change isn't "good" or "bad", so no red/green.
+            val trendColor = MaterialTheme.colorScheme.onSurface
+            val trendIcon = when {
+                weightChange == null || weightChange == 0f -> Icons.Default.Remove
+                weightChange > 0f                          -> Icons.Default.ArrowUpward
+                else                                       -> Icons.Default.ArrowDownward
+            }
 
             Icon(
-                imageVector = if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                imageVector = trendIcon,
                 contentDescription = "Trend",
                 tint = trendColor,
                 modifier = Modifier.size(28.dp)

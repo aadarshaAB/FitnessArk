@@ -636,11 +636,11 @@ fun ComparisonModePanel(
                     ).filter { (_, d) -> d != 0f }.forEach { (label, diff) ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(label, style = MaterialTheme.typography.bodySmall)
-                            Text("%+.1f".format(diff),
+                            // Neutral color + arrow: a change isn't "good" or "bad" without a goal.
+                            Text("${if (diff < 0) "↓" else "↑"} %+.1f".format(diff),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (diff < 0) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.error)
+                                color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
