@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Fitness Ark — a local-first Android fitness tracking app (Kotlin + Jetpack Compose). Daily weight/body-measurement check-ins, in-app progress photos (front/side/back) with a before/after slider, MPAndroidChart progress charts, streak tracking, and full ZIP export/import via Android SAF. Single Gradle module (`:app`), namespace `com.fitnessark`, minSdk 29 / targetSdk & compileSdk 35, Kotlin/JVM target 17.
 
+**Getting context fast:** read this file (how it's built and the working rules), then `PROGRESS.md` (everything done since the start, how it was verified, what's next), then `ENHANCEMENT_PLAN.md` (the item-by-item plan and the reasons). Keep all three up to date when work lands.
+
 ## Commands
 
 Build and run from the project root (Windows: use `gradlew.bat`, otherwise `./gradlew`).
@@ -26,6 +28,8 @@ To run a single test class/method with Gradle: `./gradlew testDebugUnitTest --te
 Tests are JVM unit tests run with Robolectric (no emulator needed), under `app/src/test/kotlin`; `TestSupport` has the in-memory Room DB and date helpers. Robolectric downloads its Android jars on first run, so that needs network once. There are no instrumented tests, so `connectedAndroidTest` has nothing to run. Tests run against a plain `Application` (`robolectric.properties`), not `FitnessArkApp`, so Koin is not started.
 
 `gradle/wrapper/gradle-wrapper.jar` is committed, so `./gradlew` works from the command line (set `JAVA_HOME` to a JDK 17+, e.g. Android Studio's bundled `jbr`). If it ever goes missing, run `gradle wrapper --gradle-version=8.9`.
+
+Device testing (Windows): `adb` is at `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`; `./gradlew installDebug` updates the app in place and keeps its data, so never clear app data or uninstall on the user's phone without asking. Save screenshots (`adb exec-out screencap -p`) under the session scratchpad, since reads outside the project are blocked. `PROGRESS.md` records what has and hasn't been checked on a device.
 
 CI: `.github/workflows/ci.yml` runs `assembleDebug lintDebug testDebugUnitTest` on every push to `main` and every pull request.
 
@@ -52,7 +56,8 @@ None. Photos are taken via the system camera app (`ActivityResultContracts.TakeP
 
 ## Known Issues / Tech Debt
 
-- Test coverage is a start, not complete: 66 JVM tests cover streak, check-in saving, photo merging/deletion, backup staging + zip-slip + version check, merge/replace restore and rollback, date helpers, chart labels, dashboard change, input validation and DB migrations. Not covered: UI/Compose screens, `PreferencesRepository`, camera flow, `SettingsViewModel` export/import wiring.
+- Test coverage is a start, not complete: 66 JVM tests cover streak, check-in saving, photo merging/deletion, backup staging + zip-slip + version check, merge/replace restore and rollback, date helpers, chart labels, dashboard change, input validation and DB migrations. Not covered: UI/Compose screens (including the Merge/Replace dialog), `PreferencesRepository`, camera flow, `SettingsViewModel` export/import wiring.
+- S6–S9 are built, unit-tested and pushed, but not yet confirmed working on a phone, and the GitHub Actions workflow has not been seen to pass. See `PROGRESS.md`.
 - `CheckinViewModel` keeps the photo `Uri`s you've picked in memory only; a full process kill while the form is open loses them. (The camera result itself is preserved via `rememberSaveable`.)
 - In `CheckinViewModel.save()`, a photo that can't be decoded is skipped without telling the user.
 

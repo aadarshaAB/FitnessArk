@@ -1,6 +1,6 @@
 # Fitness Ark — Enhancement Plan
 
-Review status: **Tier 1 (Q1–Q19) is complete and pushed.** Tier 2 and Tier 3 are still awaiting a decision. Nothing in them is implemented yet.
+Review status: **Tier 1 (Q1–Q19) and all of Tier 2 (S1–S9) are complete, committed and pushed to `main`.** Open items: the Tier 1 follow-ups Q20–Q22 and all of Tier 3 (features F1–F10), which still await a decision. See `PROGRESS.md` for the running log and what is verified on a device.
 
 **How to review:** fill in the **Decision** column for each item with `yes`, `no`, `later`, or a note. Items marked `yes` are then done one at a time, in small commits. `yes — done` means implemented and committed.
 
@@ -115,10 +115,10 @@ Ordered by value to you versus effort.
 ## Suggested order of work
 1. ~~**Q1, Q17:** stop the camera crash and make command-line builds work.~~ Done.
 2. ~~**Q2–Q7:** data-loss, security, and freeze/crash fixes.~~ Done.
-3. **S1 + S2:** database migration safety net and tests. **Next up.** There is no test coverage yet for the Tier 1 changes.
+3. ~~**S1 + S2:** database migration safety net and tests.~~ Done.
 4. ~~**Q8–Q19:** remaining quick wins.~~ Done (optionally Q20, Q21).
-5. **S3 + S4:** one database migration together, then S5, S6, S8, S7, S9.
-6. **Features F1 → F9** in table order. F1 (units) can start right after Q11 and S6 if you want it sooner.
+5. ~~**S3 + S4**, then S5, S6, S8, S7, S9.~~ Done. **Next:** decide on Q20–Q22, then start Tier 3 (F1 units is the one you asked for directly).
+6. **Features F1 → F10** in table order. F1 is unblocked now (Q11 and S6 are done).
 
 ## Main files affected
 - **Build and manifest:** `app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, `gradle/libs.versions.toml`, `gradle/wrapper/`
