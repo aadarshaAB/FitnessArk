@@ -10,8 +10,10 @@ import com.fitnessark.data.repository.ImportMode
 import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PhotoRepository
 import com.fitnessark.data.repository.PreferencesRepository
+import com.fitnessark.data.repository.ReminderSettings
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.util.FileUtils
+import com.fitnessark.util.ReminderScheduler
 import com.fitnessark.util.ZipUtils
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +28,7 @@ import java.io.File
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val unitSystem: UnitSystem = UnitSystem.METRIC,
+    val reminderSettings: ReminderSettings = ReminderSettings(enabled = false, hour = 20, minute = 0),
     val appSizeBytes: Long = 0L,
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
@@ -58,6 +61,11 @@ class SettingsViewModel(
                 _uiState.update { it.copy(unitSystem = system) }
             }
         }
+        viewModelScope.launch {
+            preferencesRepo.reminderSettings.collect { settings ->
+                _uiState.update { it.copy(reminderSettings = settings) }
+            }
+        }
     }
 
     fun refreshStats() {
@@ -74,6 +82,23 @@ class SettingsViewModel(
 
     fun setUnitSystem(system: UnitSystem) {
         viewModelScope.launch { preferencesRepo.setUnitSystem(system) }
+    }
+
+    /**
+     * Turns the reminder on/off and applies it. [hour]/[minute] default to the current setting,
+     * so a plain on/off toggle doesn't change the time. Does nothing itself about the
+     * POST_NOTIFICATIONS permission; the screen asks for that before turning the reminder on.
+     */
+    fun setReminder(
+        enabled: Boolean,
+        hour: Int = _uiState.value.reminderSettings.hour,
+        minute: Int = _uiState.value.reminderSettings.minute
+    ) {
+        viewModelScope.launch {
+            preferencesRepo.setReminderSettings(ReminderSettings(enabled, hour, minute))
+            if (enabled) ReminderScheduler.schedule(context, hour, minute)
+            else ReminderScheduler.cancel(context)
+        }
     }
 
     suspend fun exportData(): Result<File> {

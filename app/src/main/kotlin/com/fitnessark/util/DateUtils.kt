@@ -2,9 +2,11 @@ package com.fitnessark.util
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
@@ -26,6 +28,12 @@ object DateUtils {
 
     private val fullFormat = LocaleFormatter("MMM dd, yyyy")
     private val shortFormat = LocaleFormatter("MM/dd/yy")
+
+    /** "8:00 PM" / "20:00", following the device locale's usual clock. */
+    fun formatTimeOfDay(hour: Int, minute: Int): String {
+        val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault())
+        return LocalTime.of(hour, minute).format(formatter)
+    }
 
     private fun localDate(timestamp: Long): LocalDate =
         Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()

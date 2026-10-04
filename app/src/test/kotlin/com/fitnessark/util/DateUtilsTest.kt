@@ -89,4 +89,13 @@ class DateUtilsTest {
         val ts = DateUtils.timestampForPickedDay(DateUtils.pickerMillisOf(now), now)
         assertEquals(now, ts)
     }
+
+    @Test fun formats_time_of_day_in_the_device_locale() {
+        Locale.setDefault(Locale.US)
+        // The JDK's SHORT time format can separate the hour and AM/PM with a narrow no-break
+        // space rather than a plain one, so compare case-insensitively on the normalized text.
+        fun normalize(s: String) = s.replace(' ', ' ').uppercase()
+        assertEquals("8:00 PM", normalize(DateUtils.formatTimeOfDay(20, 0)))
+        assertEquals("12:00 AM", normalize(DateUtils.formatTimeOfDay(0, 0)))
+    }
 }

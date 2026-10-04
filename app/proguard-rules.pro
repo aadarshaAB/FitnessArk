@@ -31,3 +31,10 @@
 # Compose
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+
+# Glance (F6 widget): generates RemoteViews via reflection
+-keep class androidx.glance.** { *; }
+-dontwarn androidx.glance.**
+-keep class com.fitnessark.ui.widget.** { *; }
+-keep class * extends androidx.work.Worker
+-keep class * extends androidx.work.CoroutineWorker { *; }

@@ -5,6 +5,9 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <!-- F5: daily check-in reminder notification. Requested at runtime from Settings (API 33+). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".FitnessArkApp"
         android:allowBackup="false"
@@ -33,6 +36,18 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- F6: home-screen widget (streak, today's weight, quick "Log weight" button) -->
+        <receiver
+            android:name=".ui.widget.FitnessArkWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/fitness_ark_widget_info" />
+        </receiver>
 
     </application>
 

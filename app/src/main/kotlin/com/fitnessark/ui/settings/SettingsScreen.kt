@@ -1,6 +1,10 @@
 package com.fitnessark.ui.settings
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -15,15 +19,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.fitnessark.BuildConfig
 import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.data.repository.ImportMode
+import com.fitnessark.data.repository.ReminderSettings
 import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.ui.theme.CyanPrimary
+import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+
+/** True if notifications can be shown: always pre-Android 13, otherwise only once granted. */
+private fun notificationsAllowed(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,11 +45,24 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showClearDialog by remember { mutableStateOf(false) }
     // The backup file the user picked, waiting for them to choose merge or replace
     var pendingImportUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+
+    // Reminders (F5)
+    var showTimePicker by rememberSaveable { mutableStateOf(false) }
+    // The time to turn the reminder on with, once a just-requested notification permission is granted
+    var pendingReminderTime by rememberSaveable { mutableStateOf<Pair<Int, Int>?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val time = pendingReminderTime
+        pendingReminderTime = null
+        if (granted && time != null) viewModel.setReminder(enabled = true, hour = time.first, minute = time.second)
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -145,6 +172,24 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsSectionHeader("Reminders")
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                ReminderSettingRow(
+                    settings = state.reminderSettings,
+                    onToggle = { wantsOn ->
+                        if (wantsOn && !notificationsAllowed(context)) {
+                            pendingReminderTime = state.reminderSettings.hour to state.reminderSettings.minute
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            viewModel.setReminder(enabled = wantsOn)
+                        }
+                    },
+                    onTimeClick = { showTimePicker = true }
+                )
+            }
+
             // Data Management Section
             SettingsSectionHeader("Data Management")
             Card(
@@ -195,6 +240,28 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showTimePicker) {
+        val timeState = rememberTimePickerState(
+            initialHour = state.reminderSettings.hour,
+            initialMinute = state.reminderSettings.minute,
+            is24Hour = false
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Reminder time") },
+            text = { TimePicker(state = timeState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTimePicker = false
+                    viewModel.setReminder(enabled = true, hour = timeState.hour, minute = timeState.minute)
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
     }
 
     pendingImportUri?.let { uri ->
@@ -266,6 +333,39 @@ fun SettingsSectionHeader(title: String) {
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.SemiBold
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReminderSettingRow(
+    settings: ReminderSettings,
+    onToggle: (Boolean) -> Unit,
+    onTimeClick: () -> Unit
+) {
+    Column(Modifier.padding(16.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Daily check-in reminder", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Skipped automatically once you've checked in that day",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(checked = settings.enabled, onCheckedChange = onToggle)
+        }
+        if (settings.enabled) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onTimeClick) {
+                Icon(Icons.Default.Schedule, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(DateUtils.formatTimeOfDay(settings.hour, settings.minute))
+            }
+        }
+    }
 }
 
 @Composable

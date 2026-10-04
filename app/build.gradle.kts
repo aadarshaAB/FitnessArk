@@ -103,6 +103,12 @@ dependencies {
     // ExifInterface
     implementation(libs.androidx.exifinterface)
 
+    // WorkManager (F5: daily reminder)
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Glance (F6: home-screen widget)
+    implementation(libs.androidx.glance.appwidget)
+
     debugImplementation(libs.androidx.ui.tooling)
 
     // Tests

@@ -12,6 +12,7 @@ import com.fitnessark.ui.measurements.MeasurementsViewModel
 import com.fitnessark.ui.photos.PhotoTimelineViewModel
 import com.fitnessark.ui.settings.SettingsViewModel
 import com.fitnessark.util.ImageCompressor
+import com.fitnessark.util.WidgetUpdater
 import com.fitnessark.util.ZipUtils
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -35,6 +36,7 @@ val appModule = module {
     // Utilities
     single { ImageCompressor() }
     single { ZipUtils() }
+    single { WidgetUpdater(androidContext()) }
 
     // Repositories
     single { MeasurementRepository(get()) }
@@ -43,11 +45,11 @@ val appModule = module {
     single { PreferencesRepository(androidContext()) }
 
     // ViewModels
-    viewModel { DashboardViewModel(get(), get()) }
+    viewModel { DashboardViewModel(get(), get(), get()) }
     viewModel { MeasurementsViewModel(get()) }
     viewModel { PhotoTimelineViewModel(get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get(), get(), get(), get()) }
     viewModel { params ->
-        CheckinViewModel(get(), get(), get<PreferencesRepository>().unitSystem, params.get())
+        CheckinViewModel(get(), get(), get<PreferencesRepository>().unitSystem, get(), params.get())
     }
 }
