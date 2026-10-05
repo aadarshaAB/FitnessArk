@@ -113,7 +113,7 @@ class BackupRepositoryTest {
         repo.restore(
             backup(
                 photos = listOf(
-                    PhotoEntity("there", noon(2), sidePhotoPath = staged("side_there.jpg"),
+                    PhotoEntity("here", noon(2), sidePhotoPath = staged("side_there.jpg"),
                         backPhotoPath = staged("back_there.jpg"), thumbnailPath = staged("thumb_there.jpg"))
                 )
             ),
@@ -139,7 +139,7 @@ class BackupRepositoryTest {
         repo.restore(
             backup(
                 photos = listOf(
-                    PhotoEntity("there", noon(2), frontPhotoPath = staged("front_there.jpg"),
+                    PhotoEntity("here", noon(2), frontPhotoPath = staged("front_there.jpg"),
                         thumbnailPath = staged("thumb_there.jpg"))
                 )
             ),

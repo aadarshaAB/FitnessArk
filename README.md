@@ -9,7 +9,7 @@ Prebuilt signed APKs are published on the [Releases page](../../releases). Downl
 ## Features
 
 - **Daily check-ins** — weight + 5 body measurements + notes, logged for today or any past day
-- **In-app camera** — front lens + a 5-second timer by default (shutter button skips the wait); switch to the rear lens if needed. Gallery picking is also available
+- **In-app camera** — front lens with a 3×3 framing grid; tap the shutter to start a 5-second timer (tap again to capture immediately); switch to the rear lens if needed. Gallery picking is also available
 - **Before/After comparison** — pose picker (front/side/back), slider or side-by-side layout
 - **Progress charts** — 7-day trailing moving average overlay, weekly average on the dashboard
 - **Streak tracking** — consecutive daily logging streak, shown on the dashboard and a home-screen widget

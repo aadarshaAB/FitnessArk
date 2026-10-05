@@ -5,6 +5,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import com.fitnessark.TestSupport
+import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.local.AppDatabase
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -139,11 +140,35 @@ class AppDatabaseMigrationTest {
         }
     }
 
+
+    @Test
+    fun version2_photos_survive_the_v3_migration_and_a_day_can_hold_several() {
+        helper.createDatabase(dbName, 2).apply {
+            execSQL(
+                "INSERT INTO photos (id, date, frontPhotoPath, sidePhotoPath, backPhotoPath, thumbnailPath, localDate) " +
+                    "VALUES ('p1', $t0, '/front.jpg', NULL, NULL, '/thumb1.jpg', '2023-11-14')"
+            )
+            close()
+        }
+
+        val db = openCurrent()
+        try {
+            runBlocking {
+                assertEquals("/front.jpg", db.photoDao().getPhotoById("p1")!!.frontPhotoPath)
+                db.photoDao().insertPhoto(PhotoEntity(id = "p2", date = t0 + hour))
+                assertEquals(2, db.photoDao().getAllPhotosList().size)
+            }
+        } finally {
+            db.close()
+        }
+    }
+
     @Test
     fun every_registered_migration_matches_the_exported_schema() {
         for (migration in AppDatabase.MIGRATIONS) {
-            helper.createDatabase(dbName, migration.startVersion).close()
-            helper.runMigrationsAndValidate(dbName, migration.endVersion, true, *AppDatabase.MIGRATIONS)
+            val name = "$dbName-${migration.startVersion}"
+            helper.createDatabase(name, migration.startVersion).close()
+            helper.runMigrationsAndValidate(name, migration.endVersion, true, *AppDatabase.MIGRATIONS).close()
         }
     }
 }

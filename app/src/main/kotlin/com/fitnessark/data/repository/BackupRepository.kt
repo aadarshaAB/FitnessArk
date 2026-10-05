@@ -114,13 +114,13 @@ class BackupRepository(
     }
 
     /**
-     * Writes [incoming] as its day's entry, combining it with the entry already there angle by
+     * Writes [incoming], combining it with the entry already there with the same id, angle by
      * angle (the backup's photo wins; angles only the device has are kept). Returns the file paths
      * of both versions, so the caller can delete whichever ones ended up unused.
      */
     private suspend fun mergePhoto(incoming: PhotoEntity): List<String> {
         val day = DateUtils.localDateKey(incoming.date)
-        val existing = photoDao.getPhotoByLocalDate(day)
+        val existing = photoDao.getPhotoById(incoming.id)
         if (existing == null) {
             photoDao.insertPhoto(incoming.copy(localDate = day))
             return emptyList()

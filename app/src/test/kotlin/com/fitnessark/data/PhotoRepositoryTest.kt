@@ -41,14 +41,15 @@ class PhotoRepositoryTest {
 
     private fun exists(path: String?) = path != null && File(path).exists()
 
-    @Test fun saving_one_angle_keeps_the_angles_already_saved_that_day() = runBlocking {
-        repo.savePhoto(PhotoEntity(date = day), bitmap(), null, bitmap())   // front + back
+    @Test fun saving_into_an_existing_entry_keeps_the_angles_already_saved() = runBlocking {
+        val entry = PhotoEntity(date = day)
+        repo.savePhoto(entry, bitmap(), null, bitmap())   // front + back
         val before = saved()
 
-        repo.savePhoto(PhotoEntity(date = day), null, bitmap(), null)       // side only
+        repo.savePhoto(entry, null, bitmap(), null)       // side only
         val after = saved()
 
-        assertEquals("still one entry for the day", before.id, after.id)
+        assertEquals("still one entry", before.id, after.id)
         assertEquals(before.frontPhotoPath, after.frontPhotoPath)
         assertEquals(before.backPhotoPath, after.backPhotoPath)
         assertNotNull(after.sidePhotoPath)
@@ -56,16 +57,17 @@ class PhotoRepositoryTest {
             .forEach { assertTrue("missing file $it", exists(it)) }
     }
 
-    @Test fun retaking_an_angle_replaces_its_file_in_place() = runBlocking {
+    @Test fun a_second_photo_the_same_day_is_added_and_the_first_is_kept() = runBlocking {
         repo.savePhoto(PhotoEntity(date = day), bitmap(), null, null)
         val first = saved()
 
         repo.savePhoto(PhotoEntity(date = day), bitmap(), null, null)
-        val second = saved()
 
-        assertEquals(first.id, second.id)
-        assertTrue(exists(second.frontPhotoPath))
-        assertEquals(1, db.photoDao().getAllPhotosList().size)
+        val all = db.photoDao().getAllPhotosList()
+        assertEquals(2, all.size)
+        assertTrue("first photo kept", all.any { it.id == first.id && exists(it.frontPhotoPath) })
+        assertTrue(all.all { exists(it.frontPhotoPath) && exists(it.thumbnailPath) })
+        assertEquals("separate files", 2, all.map { it.frontPhotoPath }.toSet().size)
     }
 
     @Test fun different_days_get_separate_entries() = runBlocking {
@@ -75,23 +77,14 @@ class PhotoRepositoryTest {
         assertEquals(2, db.photoDao().getAllPhotosList().size)
     }
 
-    @Test fun importing_an_entry_for_a_day_that_has_one_replaces_it_and_cleans_up_its_files() = runBlocking {
+    @Test fun importing_an_entry_for_a_day_that_has_one_keeps_both() = runBlocking {
         repo.savePhoto(PhotoEntity(date = day), bitmap(), null, null)
         val local = saved()
 
         repo.insertPhotoEntity(PhotoEntity(id = "imported", date = day, frontPhotoPath = "/restored/front.jpg"))
 
-        val only = saved()
-        assertEquals("imported", only.id)
-        assertFalse("replaced entry's file should be deleted", exists(local.frontPhotoPath))
-        assertFalse(exists(local.thumbnailPath))
-    }
-
-    @Test fun the_database_itself_rejects_a_second_photo_entry_for_a_day() = runBlocking {
-        db.photoDao().insertPhoto(PhotoEntity(id = "a", date = day))
-        db.photoDao().insertPhoto(PhotoEntity(id = "b", date = day))
-
-        assertEquals(listOf("b"), db.photoDao().getAllPhotosList().map { it.id })
+        assertEquals(setOf(local.id, "imported"), db.photoDao().getAllPhotosList().map { it.id }.toSet())
+        assertTrue(exists(local.frontPhotoPath))
     }
 
     @Test fun deleting_an_angle_removes_its_file_and_keeps_the_rest() = runBlocking {

@@ -8,6 +8,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -18,9 +19,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -34,9 +36,10 @@ import java.io.File
  * and timer can actually be applied (the system camera intent has no extras for either — whatever
  * app handles it decides, which is why F11 isn't possible without an in-app camera).
  *
- * Opens on the front lens with a 5s countdown that starts automatically; tapping the shutter at
- * any point captures immediately instead of waiting out the countdown. The switch-camera button
- * lets a pose that's easier to frame from the back (e.g. Back) use the rear lens instead.
+ * Opens on the front lens with a 3x3 framing grid for lining up the pose. The 5s countdown only
+ * starts once the shutter is tapped; tapping it again during the countdown captures immediately.
+ * The switch-camera button lets a pose that's easier to frame from the back (e.g. Back) use the
+ * rear lens instead (restarting the countdown if it was already running).
  *
  * @param poseLabel shown in the top bar (e.g. "Front").
  * @param poseKey used only for the temp file name, so a stray capture is identifiable on disk
@@ -56,6 +59,8 @@ fun InAppCameraScreen(
 
     var useFrontCamera by remember { mutableStateOf(true) }
     var countdown by remember { mutableIntStateOf(TIMER_SECONDS) }
+    // False until the shutter is first tapped; the countdown only runs after that.
+    var timerStarted by remember { mutableStateOf(false) }
     var capturing by remember { mutableStateOf(false) }
     // Blocks the switch-camera button while a bind is in flight, so rapid taps can't queue
     // overlapping unbindAll()/bindToLifecycle() calls against the shared provider.
@@ -74,9 +79,10 @@ fun InAppCameraScreen(
         )
     }
 
-    // Auto-counts down on entry and on every camera flip (a flip mid-countdown restarts it,
-    // since the point you lined up for may no longer match the new lens's framing).
-    LaunchedEffect(useFrontCamera) {
+    // Counts down once the shutter has been tapped (a flip mid-countdown restarts it, since the
+    // point you lined up for may no longer match the new lens's framing).
+    LaunchedEffect(timerStarted, useFrontCamera) {
+        if (!timerStarted) return@LaunchedEffect
         countdown = TIMER_SECONDS
         while (countdown > 0) {
             delay(1000)
@@ -115,6 +121,17 @@ fun InAppCameraScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
 
+        // 3x3 framing grid (rule-of-thirds lines)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val lineColor = Color.White.copy(alpha = 0.6f)
+            for (i in 1..2) {
+                val x = size.width * i / 3f
+                val y = size.height * i / 3f
+                drawLine(lineColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.5f)
+                drawLine(lineColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5f)
+            }
+        }
+
         // Top bar: back + pose label
         Row(
             modifier = Modifier
@@ -131,7 +148,7 @@ fun InAppCameraScreen(
         }
 
         // Countdown overlay
-        if (countdown > 0 && !capturing) {
+        if (timerStarted && countdown > 0 && !capturing) {
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -148,7 +165,7 @@ fun InAppCameraScreen(
             }
         }
 
-        // Bottom controls: switch camera + shutter (tap to capture immediately)
+        // Bottom controls: switch camera + shutter (first tap starts the timer, second captures now)
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -165,7 +182,7 @@ fun InAppCameraScreen(
                 Icon(Icons.Default.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
             }
             FilledIconButton(
-                onClick = { capture() },
+                onClick = { if (timerStarted) capture() else timerStarted = true },
                 modifier = Modifier.size(72.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = Color.White,

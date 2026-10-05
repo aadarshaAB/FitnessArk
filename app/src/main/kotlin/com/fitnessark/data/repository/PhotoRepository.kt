@@ -37,8 +37,8 @@ class PhotoRepository(
     fun getPhotos(): Flow<List<PhotoEntity>> = dao.getAllPhotos()
 
     /**
-     * Saves the photos at [uris] into the entry for the day of [date], merging with that day's
-     * existing entry (see the bitmap overload). Returns the angles that couldn't be decoded (and
+     * Saves the photos at [uris] as a new entry on the day of [date]. An earlier entry the same day
+     * is left untouched (delete it manually if unwanted). Returns the angles that couldn't be decoded (and
      * were therefore skipped) so the caller can tell the user, instead of failing silently.
      */
     suspend fun savePhoto(date: Long, uris: Map<PhotoAngle, Uri>): Set<PhotoAngle> {
@@ -59,14 +59,14 @@ class PhotoRepository(
         )
 
     /**
-     * Merges [bitmaps] into the day's existing entry (if any) instead of replacing it, so angles
-     * not passed in are preserved rather than wiped.
+     * Merges [bitmaps] into the entry with [photo]'s id (a fresh id means a new entry), so angles
+     * not passed in are preserved rather than wiped. Other entries on the same day are never touched.
      */
     suspend fun savePhoto(photo: PhotoEntity, bitmaps: Map<PhotoAngle, Bitmap>) =
         withContext(ioDispatcher) {
             if (bitmaps.isEmpty()) return@withContext
             val day = DateUtils.localDateKey(photo.date)
-            val existing = dao.getPhotoByLocalDate(day)
+            val existing = dao.getPhotoById(photo.id)
             val baseId = existing?.id ?: photo.id
 
             var entry = photo.copy(
@@ -145,20 +145,9 @@ class PhotoRepository(
 
     suspend fun getAllPhotosList(): List<PhotoEntity> = dao.getAllPhotosList()
 
-    /**
-     * Inserts [photo] as the entry for its calendar day (used by backup import). If the day already
-     * has a different entry, that one is replaced and its image files deleted, unless the incoming
-     * entry points at the same files.
-     */
+    /** Inserts [photo] as-is (stamping its `localDate`); an entry with the same id is replaced. A day may hold several entries. */
     suspend fun insertPhotoEntity(photo: PhotoEntity) = withContext(ioDispatcher) {
-        val day = DateUtils.localDateKey(photo.date)
-        val existing = dao.getPhotoByLocalDate(day)
-        if (existing != null && existing.id != photo.id) {
-            val keep = photo.filePaths().toSet()
-            existing.filePaths().filter { it !in keep }.forEach { File(it).delete() }
-            dao.deletePhoto(existing.id)
-        }
-        dao.insertPhoto(photo.copy(localDate = day))
+        dao.insertPhoto(photo.copy(localDate = DateUtils.localDateKey(photo.date)))
     }
 
     suspend fun getPhotoForDay(date: Long): PhotoEntity? =

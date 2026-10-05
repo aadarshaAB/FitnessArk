@@ -15,7 +15,7 @@ import java.time.ZoneId
 
 @Database(
     entities = [MeasurementEntity::class, PhotoEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -32,7 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
          * destructive fallback: a missing migration crashes loudly instead of
          * silently wiping the user's data.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
     }
 }
 
@@ -116,5 +116,16 @@ internal val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("DROP TABLE photos")
         db.execSQL("ALTER TABLE photos_new RENAME TO photos")
         db.execSQL("CREATE UNIQUE INDEX `index_photos_localDate` ON photos (localDate)")
+    }
+}
+
+/**
+ * v2 -> v3: a day may now hold several photo entries (retaking adds one instead of replacing), so
+ * the unique index on `photos.localDate` becomes a plain index. No rows change.
+ */
+internal val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS `index_photos_localDate`")
+        db.execSQL("CREATE INDEX `index_photos_localDate` ON photos (localDate)")
     }
 }
