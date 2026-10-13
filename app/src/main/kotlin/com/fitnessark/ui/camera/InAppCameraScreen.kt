@@ -6,6 +6,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -36,7 +38,7 @@ import java.io.File
  * and timer can actually be applied (the system camera intent has no extras for either — whatever
  * app handles it decides, which is why F11 isn't possible without an in-app camera).
  *
- * Opens on the front lens with a 3x3 framing grid for lining up the pose. The 5s countdown only
+ * Opens on the front lens with a 4x4 framing grid for lining up the pose. The 5s countdown only
  * starts once the shutter is tapped; tapping it again during the countdown captures immediately.
  * The switch-camera button lets a pose that's easier to frame from the back (e.g. Back) use the
  * rear lens instead (restarting the countdown if it was already running).
@@ -65,7 +67,18 @@ fun InAppCameraScreen(
     // Blocks the switch-camera button while a bind is in flight, so rapid taps can't queue
     // overlapping unbindAll()/bindToLifecycle() calls against the shared provider.
     var binding by remember { mutableStateOf(true) }
-    val imageCapture = remember { ImageCapture.Builder().build() }
+    // The lens actually bound (useFrontCamera flips before the async rebind finishes); decides mirroring.
+    var boundFront by remember { mutableStateOf(true) }
+    // Prefer 4:3 for both preview and capture so the preview matches the saved image; devices with
+    // no 4:3 stream fall back to CameraX auto (the preview then letterboxes inside the frame).
+    val resolutionSelector = remember {
+        ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+            .build()
+    }
+    val imageCapture = remember {
+        ImageCapture.Builder().setResolutionSelector(resolutionSelector).build()
+    }
     // Set once this screen is leaving (cancelled or a capture already handed back), so a capture
     // callback that resolves after that point doesn't call back into a caller that has moved on.
     var left by remember { mutableStateOf(false) }
@@ -73,7 +86,7 @@ fun InAppCameraScreen(
     fun capture() {
         if (capturing || left) return
         capturing = true
-        capturePhoto(context, imageCapture, poseKey,
+        capturePhoto(context, imageCapture, poseKey, boundFront,
             onCaptured = { uri -> if (!left) { left = true; onCaptured(uri) } },
             onFailure = { capturing = false; if (!left) onCaptureFailed() }
         )
@@ -91,18 +104,24 @@ fun InAppCameraScreen(
         capture()
     }
 
-    val previewView = remember { PreviewView(context) }
+    val previewView = remember {
+        PreviewView(context).apply { scaleType = PreviewView.ScaleType.FIT_CENTER }
+    }
 
     // Binds (and rebinds on a camera-switch tap) whenever useFrontCamera changes; unbinds when
     // the screen leaves composition so the camera isn't left held open.
+    // `left` is set only when the screen itself goes away (separate effect below), never per-lens.
+    DisposableEffect(Unit) { onDispose { left = true } }
+
     DisposableEffect(useFrontCamera) {
         binding = true
+        var cancelled = false // this effect run was superseded by a lens flip or disposal
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            if (left) return@addListener
+            if (left || cancelled) return@addListener
             runCatching {
                 val cameraProvider = cameraProviderFuture.get()
-                val preview = Preview.Builder().build().also {
+                val preview = Preview.Builder().setResolutionSelector(resolutionSelector).build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
                 val selector = if (useFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA
@@ -110,25 +129,29 @@ fun InAppCameraScreen(
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
             }
+            boundFront = useFrontCamera
             binding = false
         }, ContextCompat.getMainExecutor(context))
         onDispose {
-            left = true
+            cancelled = true
             runCatching { ProcessCameraProvider.getInstance(context).get().unbindAll() }
         }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
+        // Portrait 4:3 frame (3 wide : 4 tall), centred; the grid is drawn over exactly this area.
+        Box(modifier = Modifier.align(Alignment.Center).fillMaxWidth().aspectRatio(3f / 4f)) {
+            AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
 
-        // 3x3 framing grid (rule-of-thirds lines)
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val lineColor = Color.White.copy(alpha = 0.6f)
-            for (i in 1..2) {
-                val x = size.width * i / 3f
-                val y = size.height * i / 3f
-                drawLine(lineColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.5f)
-                drawLine(lineColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5f)
+            // 4x4 framing grid
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val lineColor = Color.White.copy(alpha = 0.6f)
+                for (i in 1..3) {
+                    val x = size.width * i / 4f
+                    val y = size.height * i / 4f
+                    drawLine(lineColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.5f)
+                    drawLine(lineColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5f)
+                }
             }
         }
 
@@ -188,7 +211,7 @@ fun InAppCameraScreen(
                     containerColor = Color.White,
                     contentColor = Color.Black
                 ),
-                enabled = !capturing
+                enabled = !capturing && !binding
             ) {
                 if (capturing) {
                     CircularProgressIndicator(Modifier.size(28.dp), color = Color.Black, strokeWidth = 2.5.dp)
@@ -203,6 +226,7 @@ private fun capturePhoto(
     context: Context,
     imageCapture: ImageCapture,
     poseKey: String,
+    mirror: Boolean,
     onCaptured: (Uri) -> Unit,
     onFailure: () -> Unit
 ) {
@@ -216,7 +240,11 @@ private fun capturePhoto(
         onFailure()
         return
     }
-    val options = ImageCapture.OutputFileOptions.Builder(outputStream).build()
+    // CameraX saves front-camera shots un-mirrored while the preview is mirrored, so the saved
+    // photo looked flipped versus what was framed. Mirror it to match the preview.
+    val options = ImageCapture.OutputFileOptions.Builder(outputStream)
+        .setMetadata(ImageCapture.Metadata().apply { isReversedHorizontal = mirror })
+        .build()
     imageCapture.takePicture(
         options,
         ContextCompat.getMainExecutor(context),
