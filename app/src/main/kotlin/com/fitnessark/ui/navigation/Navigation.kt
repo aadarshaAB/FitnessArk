@@ -57,6 +57,19 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
 
     val showBottomBar = bottomNavScreens.any { currentRoute == it.route }
 
+    // Every jump to a top-level tab goes through here (the bottom bar and the Dashboard's links alike),
+    // so the back stack always has the same shape. A plain navigate() from the Dashboard left a
+    // Progress entry above it that the Dashboard tab's single-top navigation then could not leave.
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState    = true
+        }
+    }
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -66,15 +79,7 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
                             icon  = { Icon(screen.icon, contentDescription = null) },
                             label = { Text(screen.label) },
                             selected = currentRoute == screen.route,
-                            onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState    = true
-                                }
-                            }
+                            onClick = { navigateToTab(screen.route) }
                         )
                     }
                 }
@@ -110,8 +115,8 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
                     onNavigateToCheckin  = { navController.navigate("checkin?date=${System.currentTimeMillis()}") },
-                    onNavigateToProgress = { navController.navigate(Screen.Measurements.route) },
-                    onNavigateToPhotos   = { navController.navigate(Screen.Photos.route) },
+                    onNavigateToProgress = { navigateToTab(Screen.Measurements.route) },
+                    onNavigateToPhotos   = { navigateToTab(Screen.Photos.route) },
                     openWeightDialogOnStart = openWeightDialogOnStart
                 )
             }
