@@ -1,6 +1,16 @@
 package com.fitnessark.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
@@ -8,8 +18,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.*
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
@@ -21,6 +33,7 @@ import com.fitnessark.ui.measurements.MeasurementsScreen
 import com.fitnessark.ui.photos.PhotoDetailScreen
 import com.fitnessark.ui.photos.PhotoTimelineScreen
 import com.fitnessark.ui.settings.SettingsScreen
+import com.fitnessark.ui.theme.rememberReducedMotion
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Dashboard    : Screen("dashboard",    "Dashboard", Icons.Default.Home)
@@ -68,10 +81,29 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
             }
         }
     ) { paddingValues ->
+        // Tabs cross-fade; detail screens (check-in, photo, camera) slide in from the right. With
+        // system animations off, every transition is skipped.
+        val reducedMotion = rememberReducedMotion()
+        val tabEnter: EnterTransition = if (reducedMotion) EnterTransition.None else fadeIn(tween(150))
+        val tabExit: ExitTransition = if (reducedMotion) ExitTransition.None else fadeOut(tween(150))
+        val detailEnter: EnterTransition = if (reducedMotion) EnterTransition.None
+            else slideInHorizontally(tween(250)) { it / 4 } + fadeIn(tween(250))
+        val detailExit: ExitTransition = if (reducedMotion) ExitTransition.None
+            else slideOutHorizontally(tween(250)) { it / 4 } + fadeOut(tween(250))
+        val isDetail: (String?) -> Boolean = { route ->
+            route != null && bottomNavScreens.none { it.route == route }
+        }
+
+        // Wide screens (tablet, landscape): content keeps a readable width and is centred
+        Box(Modifier.padding(paddingValues).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         NavHost(
             navController    = navController,
             startDestination = Screen.Dashboard.route,
-            modifier         = Modifier.padding(paddingValues)
+            modifier         = Modifier.widthIn(max = ContentMaxWidth).fillMaxSize(),
+            enterTransition    = { if (isDetail(targetState.destination.route)) detailEnter else tabEnter },
+            exitTransition     = { tabExit },
+            popEnterTransition = { tabEnter },
+            popExitTransition  = { if (isDetail(initialState.destination.route)) detailExit else tabExit }
         ) {
 
             // ── Bottom nav destinations ────────────────────────────────
@@ -192,8 +224,11 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
                 )
             }
         }
+        }
     }
 }
+
+private val ContentMaxWidth = 720.dp
 
 /** Key the in-app camera's result Uri is stored under in the caller's SavedStateHandle. */
 const val CAMERA_RESULT_KEY = "camera_captured_uri"

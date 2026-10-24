@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.fitnessark.data.model.Metric
 import com.fitnessark.data.model.UnitSystem
+import com.fitnessark.ui.theme.DashboardSkeleton
 import com.fitnessark.ui.theme.LocalUnitSystem
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.MeasurementInput
@@ -89,9 +90,7 @@ fun DashboardScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            DashboardSkeleton(Modifier.padding(padding))
             return@Scaffold
         }
 

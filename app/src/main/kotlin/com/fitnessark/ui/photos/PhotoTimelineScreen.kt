@@ -52,6 +52,7 @@ import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.model.pathFor
 import com.fitnessark.ui.theme.IconSize
+import com.fitnessark.ui.theme.PhotosSkeleton
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
@@ -101,9 +102,7 @@ fun PhotoTimelineScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            PhotosSkeleton(Modifier.padding(padding))
         } else if (state.photos.isEmpty()) {
             EmptyPhotosState(modifier = Modifier.padding(padding))
         } else if (state.beforeAfterMode) {

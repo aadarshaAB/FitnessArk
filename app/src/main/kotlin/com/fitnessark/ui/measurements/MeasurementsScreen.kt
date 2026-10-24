@@ -42,6 +42,8 @@ import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.model.Metric
 import com.fitnessark.ui.theme.IconSize
 import com.fitnessark.ui.theme.LocalUnitSystem
+import com.fitnessark.ui.theme.ProgressSkeleton
+import com.fitnessark.ui.theme.rememberReducedMotion
 import com.fitnessark.util.DateUtils
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.Legend
@@ -149,9 +151,7 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
             Spacer(Modifier.height(8.dp))
 
             if (state.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                ProgressSkeleton()
                 return@Scaffold
             }
 
@@ -505,6 +505,7 @@ fun MeasurementLineChart(
     onNothingSelected: () -> Unit,
     modifier:         Modifier = Modifier
 ) {
+    val reducedMotion     = rememberReducedMotion()
     val primaryColor      = MaterialTheme.colorScheme.primary.toArgb()
     val trendColor        = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f).toArgb()
     val onSurfaceColor    = MaterialTheme.colorScheme.onSurface.toArgb()
@@ -603,7 +604,7 @@ fun MeasurementLineChart(
                 }
             }
             chart.data                 = LineData(dataSets)
-            if (animate) chart.animateX(400)
+            if (animate && !reducedMotion) chart.animateX(400)
             chart.invalidate()
         },
         modifier = modifier
