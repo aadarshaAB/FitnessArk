@@ -37,6 +37,7 @@ import com.fitnessark.data.repository.MeasurementRepository
 import com.fitnessark.data.repository.PreferencesRepository
 import kotlinx.coroutines.flow.first
 import org.koin.java.KoinJavaComponent.inject
+import com.fitnessark.ui.theme.Spacing
 
 /**
  * Home-screen widget (F6): today's weight, the streak, and a "Log weight" button.
@@ -65,7 +66,7 @@ private fun WidgetContent(weight: Float?, streak: Int, unitSystem: UnitSystem) {
         modifier = GlanceModifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
-            .padding(12.dp)
+            .padding(Spacing.md)
             .clickable(actionStartActivity<MainActivity>()),
         verticalAlignment = Alignment.CenterVertically
     ) {

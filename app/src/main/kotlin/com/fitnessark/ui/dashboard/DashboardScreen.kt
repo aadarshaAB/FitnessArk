@@ -46,6 +46,7 @@ import com.fitnessark.ui.theme.LocalUnitSystem
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.MeasurementInput
 import org.koin.androidx.compose.koinViewModel
+import com.fitnessark.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,8 +100,8 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             if (state.measurementCount == 0) {
                 FirstRunCard(onCheckin = onNavigateToCheckin, onLogWeight = { openWeightDialog() })
@@ -174,13 +175,13 @@ fun HeroCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier
                 .clickable(onClickLabel = "Edit today's weight", onClick = onEditWeight)
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -226,7 +227,7 @@ fun HeroCard(
             WeekChange(state.weightChangeLast7Days, state.weeklyAverageWeight, unitSystem)
             WeekStrip(state.recentLogged)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Button(onClick = onCheckin, modifier = Modifier.weight(1f)) { Text("Full check-in") }
                 OutlinedButton(onClick = onEditWeight, modifier = Modifier.weight(1f)) { Text("Log weight only") }
             }
@@ -277,7 +278,7 @@ private fun WeekStrip(logged: List<Boolean>) {
             contentDescription = "Logged ${logged.count { it }} of the last 7 days"
         }
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             logged.forEach { done ->
                 Box(
                     Modifier
@@ -324,12 +325,12 @@ private fun FirstRunCard(onCheckin: () -> Unit, onLogWeight: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            modifier = Modifier.fillMaxWidth().padding(Spacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Icon(
                 Icons.Default.LocalFireDepartment,
@@ -371,7 +372,7 @@ fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
                 // it's already revealed navigates there.
                 if (revealed) onClick() else revealed = true
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
@@ -384,7 +385,7 @@ fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(MaterialTheme.shapes.large)
                         .then(if (!revealed) Modifier.blur(24.dp) else Modifier)
                 )
                 // Date overlay
@@ -398,7 +399,7 @@ fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
                                     Color.Black.copy(alpha = 0.6f))
                             )
                         )
-                        .padding(12.dp)
+                        .padding(Spacing.md)
                 ) {
                     Text(
                         text = DateUtils.formatDate(date),

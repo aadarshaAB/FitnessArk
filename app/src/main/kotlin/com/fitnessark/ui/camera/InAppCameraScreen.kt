@@ -32,6 +32,7 @@ import androidx.core.content.ContextCompat
 import com.fitnessark.util.CameraUtils
 import kotlinx.coroutines.delay
 import java.io.File
+import com.fitnessark.ui.theme.Spacing
 
 /**
  * F11: in-app camera for pose capture, opened instead of the system camera app so a default lens
@@ -161,7 +162,7 @@ fun InAppCameraScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
                 .background(Color.Black.copy(alpha = 0.4f))
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .padding(horizontal = Spacing.xs, vertical = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { left = true; onCancel() }) {

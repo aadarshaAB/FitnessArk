@@ -31,6 +31,7 @@ import com.fitnessark.data.model.pathFor
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import com.fitnessark.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -194,12 +195,12 @@ fun PhotoDetailScreen(
                 // Angle label badge top-left
                 views.getOrNull(safeTab)?.let { (angle, _) ->
                     Surface(
-                        modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                        modifier = Modifier.align(Alignment.TopStart).padding(Spacing.md),
                         color    = Color.Black.copy(alpha = 0.5f),
                         shape    = RoundedCornerShape(6.dp)
                     ) {
                         Text(angle.label,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = Spacing.xs),
                             style    = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color    = Color.White)
@@ -216,8 +217,8 @@ fun PhotoDetailScreen(
                     Row(
                         modifier              = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                         verticalAlignment     = Alignment.CenterVertically
                     ) {
                         // Retake button

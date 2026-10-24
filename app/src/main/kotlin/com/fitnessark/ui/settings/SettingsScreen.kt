@@ -34,6 +34,7 @@ import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import com.fitnessark.ui.theme.Spacing
 
 /** True if notifications can be shown: always pre-Android 13, otherwise only once granted. */
 private fun notificationsAllowed(context: Context): Boolean =
@@ -108,22 +109,22 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             // Appearance Section
             SettingsSectionHeader("Appearance")
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Column(Modifier.padding(8.dp)) {
+                Column(Modifier.padding(Spacing.sm)) {
                     Text(
                         "Theme",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                     )
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm, vertical = Spacing.xs)) {
                         val modes = listOf(ThemeMode.DARK to "Dark", ThemeMode.LIGHT to "Light", ThemeMode.SYSTEM to "System")
                         modes.forEachIndexed { index, (mode, label) ->
                             SegmentedButton(
@@ -141,14 +142,14 @@ fun SettingsScreen(
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Column(Modifier.padding(8.dp)) {
+                Column(Modifier.padding(Spacing.sm)) {
                     Text(
                         "Measurement units",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                     )
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm, vertical = Spacing.xs)) {
                         UnitSystem.entries.forEachIndexed { index, system ->
                             SegmentedButton(
                                 selected = state.unitSystem == system,
@@ -162,7 +163,7 @@ fun SettingsScreen(
                         "Metric uses kg and cm, Imperial uses lb and in. Your data is always stored in kg and cm, so you can switch any time.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                     )
                 }
             }
@@ -200,7 +201,7 @@ fun SettingsScreen(
                             exportLauncher.launch("fitness_ark_backup_${System.currentTimeMillis()}.zip")
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = Spacing.lg))
                     SettingsActionItem(
                         icon = Icons.Default.FileDownload,
                         title = "Import Data",
@@ -233,7 +234,7 @@ fun SettingsScreen(
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     AboutRow("Version", BuildConfig.VERSION_NAME)
                     AboutRow("Total Entries", "${state.entryCount}")
                     AboutRow("Storage Used", formatBytes(state.appSizeBytes))
@@ -274,7 +275,7 @@ fun SettingsScreen(
             icon = { Icon(Icons.Default.FileDownload, null) },
             title = { Text("Import backup") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Button(
                         onClick = {
                             viewModel.importData(uri, ImportMode.MERGE)
@@ -320,7 +321,7 @@ fun SettingsScreen(
             icon = { Icon(Icons.Default.Warning, "Warning", tint = MaterialTheme.colorScheme.error) },
             title = { Text("Clear All Data?") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     Text("This will permanently delete ALL measurements, photos, and progress data. This action cannot be undone.")
                     OutlinedTextField(
                         value = typed,
@@ -364,7 +365,7 @@ fun ReminderSettingRow(
     onToggle: (Boolean) -> Unit,
     onTimeClick: () -> Unit
 ) {
-    Column(Modifier.padding(16.dp)) {
+    Column(Modifier.padding(Spacing.lg)) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -405,7 +406,7 @@ fun SettingsActionItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(

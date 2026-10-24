@@ -42,6 +42,7 @@ import com.fitnessark.ui.theme.successColor
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import com.fitnessark.ui.theme.Spacing
 
 // ─── Pose slot data ──────────────────────────────────────────────────────────
 
@@ -189,14 +190,14 @@ fun CheckinScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md)
                         .height(52.dp),
                     enabled = !state.isSaving,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor   = MaterialTheme.colorScheme.onPrimary
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (state.isSaving) {
                         CircularProgressIndicator(
@@ -224,8 +225,8 @@ fun CheckinScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             // Date badge — tap to log or edit another day
             Surface(
@@ -233,10 +234,10 @@ fun CheckinScreen(
                 // The badge stays compact, but its tap area is the full 48dp
                 modifier = Modifier.minimumInteractiveComponentSize(),
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shape = RoundedCornerShape(8.dp)
+                shape = MaterialTheme.shapes.small
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -412,26 +413,26 @@ private fun PoseCaptureCard(
             else
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             // Thumbnail / placeholder
             Box(
                 modifier = Modifier
                     .size(88.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.background)
                     .border(
                         width = if (captured) 2.dp else 1.dp,
                         color = if (captured) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -440,7 +441,7 @@ private fun PoseCaptureCard(
                         model = capturedUri,
                         contentDescription = "${slot.angle.label} photo",
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
+                        modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium)
                     )
                     // Done tick overlay
                     Box(
@@ -473,7 +474,7 @@ private fun PoseCaptureCard(
             // Info + buttons
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -503,7 +504,7 @@ private fun PoseCaptureCard(
                 if (!captured) {
                     Row(
                         verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
                     ) {
                         Icon(Icons.Default.Lightbulb, null,
                             tint = MaterialTheme.colorScheme.primary,
@@ -520,7 +521,7 @@ private fun PoseCaptureCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     if (captured) {
                         OutlinedButton(
@@ -540,8 +541,8 @@ private fun PoseCaptureCard(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor   = MaterialTheme.colorScheme.onPrimary
                             ),
-                            contentPadding = PaddingValues(vertical = 8.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            contentPadding = PaddingValues(vertical = Spacing.sm),
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Icon(Icons.Default.CameraAlt, null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
@@ -570,7 +571,7 @@ private fun SectionHeader(
     title: String
 ) {
     Row(verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Icon(icon, contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp))

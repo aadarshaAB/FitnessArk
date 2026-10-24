@@ -8,26 +8,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 
-// Brand colors
-val CyanPrimary = Color(0xFF00E5FF)
-val CyanSecondary = Color(0xFF00B8D9)
-val BackgroundDark = Color(0xFF0D0D0D)
-val SurfaceDark = Color(0xFF1A1A2E)
-val CardDark = Color(0xFF16213E)
-val OnSurfaceDark = Color(0xFFE0E0E0)
-val ErrorRed = Color(0xFFCF6679)
+// One teal accent (hue ~190) in both themes. Dark mode steps up through neutral greys instead of
+// navy so the surfaces are easy to tell apart; green is only ever the "saved / done" colour.
+val TealDark = Color(0xFF4FC3DC)
+val TealLight = Color(0xFF00708A)
+val BackgroundDark = Color(0xFF121416)
+val SurfaceDark = Color(0xFF1A1D20)
+val CardDark = Color(0xFF262B2F)
+val OnSurfaceDark = Color(0xFFE3E6E8)
+val ErrorRed = Color(0xFFEC8A98)
 val SuccessGreen = Color(0xFF4CAF50)
-val WarningAmber = Color(0xFFFFC107)
 
 private val DarkColorScheme = darkColorScheme(
-    primary = CyanPrimary,
-    onPrimary = Color(0xFF003545),
-    primaryContainer = Color(0xFF004D60),
-    onPrimaryContainer = CyanPrimary,
-    secondary = CyanSecondary,
-    onSecondary = Color(0xFF002B36),
-    secondaryContainer = Color(0xFF003545),
-    onSecondaryContainer = Color(0xFF80DEEA),
+    primary = TealDark,
+    onPrimary = Color(0xFF00313D),
+    primaryContainer = Color(0xFF0F4A5A),
+    onPrimaryContainer = Color(0xFFC2EDF8),
+    secondary = Color(0xFF93B5C1),
+    onSecondary = Color(0xFF0E2A33),
+    secondaryContainer = Color(0xFF2A4650),
+    onSecondaryContainer = Color(0xFFCDE7F0),
     tertiary = Color(0xFFB39DDB),
     onTertiary = Color(0xFF1A0033),
     background = BackgroundDark,
@@ -35,25 +35,26 @@ private val DarkColorScheme = darkColorScheme(
     surface = SurfaceDark,
     onSurface = OnSurfaceDark,
     surfaceVariant = CardDark,
-    onSurfaceVariant = Color(0xFFB0BEC5),
+    onSurfaceVariant = Color(0xFFB4BCC2),
     error = ErrorRed,
-    outline = Color(0xFF37474F)
+    outline = Color(0xFF4A5359)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF006780),
+    primary = TealLight,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFB9EAFF),
+    primaryContainer = Color(0xFFBEE9F4),
     onPrimaryContainer = Color(0xFF001F2A),
     secondary = Color(0xFF4B6272),
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFCEE7FA),
     onSecondaryContainer = Color(0xFF071E2A),
-    background = Color(0xFFF8FAFB),
+    tertiary = Color(0xFF6B4FA3),
+    background = Color(0xFFF6F9FA),
     onBackground = Color(0xFF191C1E),
     surface = Color.White,
     onSurface = Color(0xFF191C1E),
-    surfaceVariant = Color(0xFFDCE3E9),
+    surfaceVariant = Color(0xFFE1E8EC),
     onSurfaceVariant = Color(0xFF41484D),
     error = Color(0xFFBA1A1A),
     outline = Color(0xFF71787D)
@@ -74,6 +75,7 @@ fun FitnessArkTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = FitnessArkTypography,
+        shapes = FitnessArkShapes,
         content = content
     )
 }

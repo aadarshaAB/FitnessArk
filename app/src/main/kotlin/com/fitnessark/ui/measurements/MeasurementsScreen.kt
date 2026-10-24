@@ -16,7 +16,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.ShowChart
@@ -35,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.model.Metric
+import com.fitnessark.ui.theme.IconSize
 import com.fitnessark.ui.theme.LocalUnitSystem
 import com.fitnessark.util.DateUtils
 import com.github.mikephil.charting.charts.LineChart
@@ -48,6 +54,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import org.koin.androidx.compose.koinViewModel
+import com.fitnessark.ui.theme.Spacing
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -108,8 +115,8 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
         ) {
             // ── Metric dropdown + 7-day average toggle ────────────────────
             Row(
-                modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier              = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 MetricDropdown(
@@ -128,7 +135,7 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
 
             // ── Date range ────────────────────────────────────────────────
             SingleChoiceSegmentedButtonRow(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.lg)
             ) {
                 DateRange.entries.forEachIndexed { index, range ->
                     SegmentedButton(
@@ -188,7 +195,7 @@ private fun RangeSummary(metric: Metric, values: List<Float>, unitSystem: com.fi
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
             .semantics(mergeDescendants = true) { },
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -251,7 +258,7 @@ private fun ChartView(
             modifier    = Modifier
                 .fillMaxWidth()
                 .height(260.dp)
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                 .semantics { contentDescription = chartSummary }
         )
 
@@ -302,14 +309,14 @@ fun DayDetailCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
 
             // Header row: date + dismiss button
             Row(
@@ -317,13 +324,21 @@ fun DayDetailCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
-                Text(
-                    "📅  ${DateUtils.formatDate(measurement.date)}",
-                    style      = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.CalendarMonth, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(IconSize.sm)
+                    )
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text(
+                        DateUtils.formatDate(measurement.date),
+                        style      = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color      = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     // Delete entry
                     IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(
@@ -364,14 +379,14 @@ fun DayDetailCard(
                     selectedMetric.unit(unitSystem),
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = Spacing.xs)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     selectedMetric.label,
                     style  = MaterialTheme.typography.bodySmall,
                     color  = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = Spacing.xs)
                 )
             }
 
@@ -381,7 +396,7 @@ fun DayDetailCard(
             rows.forEach { row ->
                 Row(
                     modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     row.forEach { metric ->
                         val value = getMetricValue(metric)
@@ -403,11 +418,19 @@ fun DayDetailCard(
                 Spacer(Modifier.height(4.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    "📝  ${measurement.notes}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(
+                        Icons.Default.StickyNote2, contentDescription = "Note",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(IconSize.sm)
+                    )
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text(
+                        measurement.notes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         }
     }
@@ -600,8 +623,8 @@ fun MeasurementsTable(
         return
     }
     LazyColumn(
-        contentPadding        = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement   = Arrangement.spacedBy(8.dp)
+        contentPadding        = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalArrangement   = Arrangement.spacedBy(Spacing.sm)
     ) {
         items(measurements, key = { it.id }) { measurement ->
             val dismissState = rememberSwipeToDismissBoxState(
@@ -618,7 +641,7 @@ fun MeasurementsTable(
                         Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.errorContainer)
-                            .padding(end = 16.dp),
+                            .padding(end = Spacing.lg),
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         Icon(Icons.Default.Delete, "Delete",
@@ -642,7 +665,7 @@ fun MeasurementTableRow(m: MeasurementEntity, onDelete: () -> Unit = {}) {
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(Spacing.md)) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -712,12 +735,12 @@ fun ComparisonModePanel(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(Spacing.md)) {
             Text("Compare two days", style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold)
             val dates = listOf(selected.first, selected.second).mapNotNull { id ->
@@ -749,11 +772,19 @@ fun ComparisonModePanel(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(metric.label, style = MaterialTheme.typography.bodySmall)
                             // Neutral color + arrow: a change isn't "good" or "bad" without a goal.
-                            Text("${if (diff < 0) "↓" else "↑"} %+.1f ${metric.unit(unitSystem)}"
-                                .format(metric.toDisplay(diff, unitSystem)),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (diff < 0) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                    contentDescription = if (diff < 0) "Down" else "Up",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("%+.1f ${metric.unit(unitSystem)}"
+                                    .format(metric.toDisplay(diff, unitSystem)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface)
+                            }
                         }
                     }
                 }
@@ -769,10 +800,10 @@ fun EmptyChartState(hasEntries: Boolean, metric: Metric) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             modifier            = Modifier.padding(32.dp)
         ) {
-            Text("📊", style = MaterialTheme.typography.displayMedium)
+            Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.xl))
             Text(
                 if (hasEntries) "No ${metric.label} data yet"
                 else "No measurements in this range",
@@ -796,9 +827,9 @@ fun EmptyMeasurementsState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
-            Text("📊", style = MaterialTheme.typography.displayMedium)
+            Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.xl))
             Text("No measurements logged yet",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center)

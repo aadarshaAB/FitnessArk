@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -50,12 +51,14 @@ import coil.compose.AsyncImage
 import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.model.pathFor
+import com.fitnessark.ui.theme.IconSize
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import com.fitnessark.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,18 +210,18 @@ private fun TimelineGrid(
         columns               = GridCells.Fixed(4),
         state                 = gridState,
         modifier              = modifier.fillMaxSize(),
-        contentPadding        = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement   = Arrangement.spacedBy(8.dp)
+        contentPadding        = PaddingValues(Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement   = Arrangement.spacedBy(Spacing.sm)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 val path = selected?.pathFor(angle)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(360.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(MaterialTheme.shapes.large)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(
                             onClickLabel = if (hidden) "Show photos" else "Open photo details"
@@ -239,11 +242,11 @@ private fun TimelineGrid(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(Spacing.lg)
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     PhotoAngle.entries.forEach { a ->
                         FilterChip(
                             selected = angle == a,
@@ -280,7 +283,7 @@ private fun TimelineGrid(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = Spacing.sm)
                 )
             }
             items(photos, key = { it.id }) { photo ->
@@ -295,7 +298,7 @@ private fun TimelineGrid(
                             scope.launch { gridState.animateScrollToItem(0) }
                         },
                     border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                    shape  = RoundedCornerShape(8.dp)
+                    shape  = MaterialTheme.shapes.small
                 ) {
                     Box(Modifier.fillMaxSize()) {
                         if (thumbPath != null) {
@@ -312,7 +315,7 @@ private fun TimelineGrid(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
                                 .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(topEnd = 6.dp))
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                .padding(horizontal = Spacing.xs, vertical = 1.dp)
                         )
                     }
                 }
@@ -338,8 +341,8 @@ fun BeforeAfterView(
     Column(modifier = modifier.fillMaxWidth()) {
         // Which pose to compare, then (separately) how to lay the two photos out
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             PhotoAngle.entries.forEach { a ->
                 FilterChip(
@@ -350,7 +353,7 @@ fun BeforeAfterView(
             }
         }
         SingleChoiceSegmentedButtonRow(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs)
         ) {
             ComparisonLayout.entries.forEachIndexed { index, l ->
                 SegmentedButton(
@@ -364,8 +367,8 @@ fun BeforeAfterView(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             listOf(
                 "Before" to beforePhoto to onSetBefore,
@@ -404,7 +407,7 @@ fun BeforeAfterView(
             val comparisonModifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
             val beforePath = beforePhoto.pathFor(angle)
             val afterPath  = afterPhoto.pathFor(angle)
             when {
@@ -454,7 +457,7 @@ private fun SliderComparisonView(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             // Drag isn't the only way: a screen reader (or switch) can step the divider instead
             .semantics {
                 contentDescription = "Before and after comparison slider"
@@ -535,14 +538,14 @@ private fun SliderComparisonView(
             Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = Color.Black)
         }
         Surface(
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp),
+            modifier = Modifier.align(Alignment.TopStart).padding(start = Spacing.sm, top = Spacing.sm),
             color = Color.Black.copy(alpha = 0.45f),
             shape = RoundedCornerShape(4.dp)
         ) {
             Text("BEFORE", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Color.White)
         }
         Surface(
-            modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 8.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(end = Spacing.sm, top = Spacing.sm),
             color = Color.Black.copy(alpha = 0.45f),
             shape = RoundedCornerShape(4.dp)
         ) {
@@ -559,14 +562,14 @@ private fun SideBySideView(
     hidden:   Boolean,
     modifier: Modifier = Modifier
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         listOf("BEFORE" to before, "AFTER" to after).forEach { (label, photo) ->
             val path = photo.pathFor(angle)
             Box(
                 Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
@@ -584,11 +587,11 @@ private fun SideBySideView(
                         style     = MaterialTheme.typography.bodySmall,
                         color     = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier  = Modifier.padding(8.dp)
+                        modifier  = Modifier.padding(Spacing.sm)
                     )
                 }
                 Surface(
-                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                    modifier = Modifier.align(Alignment.TopStart).padding(Spacing.sm),
                     color = Color.Black.copy(alpha = 0.45f),
                     shape = RoundedCornerShape(4.dp)
                 ) {
@@ -622,8 +625,8 @@ private fun PhotoPickerDialog(
             LazyVerticalGrid(
                 columns               = GridCells.Fixed(3),
                 modifier              = Modifier.heightIn(max = 420.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement   = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement   = Arrangement.spacedBy(Spacing.sm)
             ) {
                 items(photos, key = { it.id }) { p ->
                     val hasAngle = p.pathFor(angle) != null
@@ -636,7 +639,7 @@ private fun PhotoPickerDialog(
                         Card(
                             modifier = Modifier.aspectRatio(0.75f).alpha(if (hasAngle) 1f else 0.4f),
                             border   = if (p.id == selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                            shape    = RoundedCornerShape(8.dp)
+                            shape    = MaterialTheme.shapes.small
                         ) {
                             if (thumb != null) {
                                 ProtectedPhoto(
@@ -689,10 +692,10 @@ fun EmptyPhotosState(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment   = Alignment.CenterHorizontally,
-            verticalArrangement   = Arrangement.spacedBy(8.dp),
+            verticalArrangement   = Arrangement.spacedBy(Spacing.sm),
             modifier              = Modifier.padding(32.dp)
         ) {
-            Text("📸", style = MaterialTheme.typography.displayMedium)
+            Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.xl))
             Text("No photos yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text("Start your journey! Add photos during a Full Check-in.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
