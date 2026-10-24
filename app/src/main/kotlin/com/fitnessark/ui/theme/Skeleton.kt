@@ -26,7 +26,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SkeletonBlock(modifier: Modifier = Modifier) {
     val reduced = rememberReducedMotion()
-    val pulse = rememberInfiniteTransition(label = "skeleton").animateFloat(
+    // No transition at all under reduced motion, rather than one running with its value ignored
+    val alpha = if (reduced) 0.7f else rememberInfiniteTransition(label = "skeleton").animateFloat(
         initialValue = 0.45f,
         targetValue = 0.9f,
         animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
@@ -35,7 +36,7 @@ fun SkeletonBlock(modifier: Modifier = Modifier) {
     Box(
         modifier
             .clip(MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (reduced) 0.7f else pulse))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha))
     )
 }
 

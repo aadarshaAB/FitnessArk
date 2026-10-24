@@ -165,8 +165,10 @@ fun CheckinScreen(
     val othersFilled = otherMetrics.any { state.text(it).isNotBlank() }
     // A day that already has other measurements opens the section by itself
     LaunchedEffect(othersFilled) { if (othersFilled) moreExpanded = true }
-    // ...and a field with an error never stays hidden
-    val showMore = moreExpanded || otherMetrics.any { viewModel.fieldError(it, state) != null }
+    // ...and a field with an error is opened when it appears (not forced open, so the toggle still works)
+    val hasHiddenError = otherMetrics.any { viewModel.fieldError(it, state) != null }
+    LaunchedEffect(hasHiddenError) { if (hasHiddenError) moreExpanded = true }
+    val showMore = moreExpanded
 
     Scaffold(
         topBar = {
@@ -211,7 +213,7 @@ fun CheckinScreen(
                     } else {
                         Icon(Icons.Default.Check, null,
                             tint = MaterialTheme.colorScheme.onPrimary)
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(Spacing.sm))
                         Text("Save Check-in", color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     }
@@ -265,7 +267,7 @@ fun CheckinScreen(
                 }
             ) {
                 Text("More measurements")
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(Spacing.xs))
                 Icon(
                     if (showMore) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null
@@ -321,7 +323,7 @@ fun CheckinScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
         }
     }
 
@@ -517,7 +519,7 @@ private fun PoseCaptureCard(
                     }
                 }
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.xs))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -530,7 +532,7 @@ private fun PoseCaptureCard(
                             contentPadding = PaddingValues(vertical = 6.dp)
                         ) {
                             Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(Spacing.xs))
                             Text("Retake", style = MaterialTheme.typography.labelMedium)
                         }
                     } else {

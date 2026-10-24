@@ -148,7 +148,7 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
 
             if (state.isLoading) {
                 ProgressSkeleton()
@@ -290,7 +290,7 @@ private fun ChartView(
                 result       = state.comparisonResult
             )
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
     }
 }
 
@@ -360,7 +360,7 @@ fun DayDetailCard(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
 
             // Big highlight — the metric that was tapped
             val highlightValue = getMetricValue(selectedMetric)
@@ -374,14 +374,14 @@ fun DayDetailCard(
                     fontWeight = FontWeight.ExtraBold,
                     color      = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(Spacing.xs))
                 Text(
                     selectedMetric.unit(unitSystem),
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(bottom = Spacing.xs)
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(Spacing.sm))
                 Text(
                     selectedMetric.label,
                     style  = MaterialTheme.typography.bodySmall,
@@ -415,7 +415,7 @@ fun DayDetailCard(
 
             // Notes if present
             if (!measurement.notes.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.xs))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.Top) {
@@ -701,7 +701,7 @@ fun MeasurementTableRow(m: MeasurementEntity, onDelete: () -> Unit = {}) {
                         }
                     }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Spacing.xs))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 listOf(Metric.HIPS, Metric.BICEPS, Metric.THIGHS)
                     .forEach { metric ->
@@ -716,7 +716,7 @@ fun MeasurementTableRow(m: MeasurementEntity, onDelete: () -> Unit = {}) {
                     }
             }
             if (!m.notes.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.xs))
                 Text(m.notes, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -757,13 +757,13 @@ fun ComparisonModePanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             AnimatedVisibility(visible = result != null) {
                 result?.let {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacing.sm))
                     HorizontalDivider()
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacing.sm))
                     Text("${it.daysBetween} days apart",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(Spacing.xs))
                     listOf(
                         Metric.WEIGHT to it.weightDiff, Metric.CHEST  to it.chestDiff,
                         Metric.WAIST  to it.waistDiff,  Metric.HIPS   to it.hipsDiff,

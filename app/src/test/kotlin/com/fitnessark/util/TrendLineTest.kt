@@ -52,6 +52,12 @@ class TrendLineTest {
         assertEquals(75f, TrendLine.recentAverage(points, day(10))!!, 0.001f)
     }
 
+    @Test fun recent_average_leaves_out_future_days() {
+        val points = listOf(point(8, 70f), point(10, 74f), point(12, 100f))
+        // "now" = day 10: day 12 is later than today, so it must not count
+        assertEquals(72f, TrendLine.recentAverage(points, day(10))!!, 0.001f)
+    }
+
     @Test fun recent_average_is_null_when_nothing_is_recent() {
         assertNull(TrendLine.recentAverage(listOf(point(0, 70f)), day(30)))
         assertNull(TrendLine.recentAverage(emptyList(), day(0)))

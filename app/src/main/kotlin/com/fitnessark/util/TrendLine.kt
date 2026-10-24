@@ -30,7 +30,7 @@ object TrendLine {
     fun recentAverage(points: List<Point>, now: Long, windowDays: Int = WINDOW_DAYS): Float? {
         // By calendar day, not instant: an entry dated later today (e.g. a noon check-in viewed in the
         // morning) still belongs to today's window; only future days are left out.
-        val recent = points.filter { DateUtils.getDaysBetween(it.date, now) in 0 until windowDays }
+        val recent = points.filter { DateUtils.daysBefore(it.date, now) in 0 until windowDays }
         return if (recent.isEmpty()) null else recent.map { it.value }.average().toFloat()
     }
 }

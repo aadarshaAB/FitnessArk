@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -437,7 +438,7 @@ fun BeforeAfterView(
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier.padding(Spacing.xl)
                 )
             }
         }
@@ -457,6 +458,8 @@ private fun SliderComparisonView(
     Box(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)
+            // Measured up front, so the divider is drawn at its 50% start before any touch
+            .onSizeChanged { containerWidthPx = it.width.toFloat() }
             // Drag isn't the only way: a screen reader (or switch) can step the divider instead
             .semantics {
                 contentDescription = "Before and after comparison slider"
@@ -471,7 +474,6 @@ private fun SliderComparisonView(
                 awaitEachGesture {
                     val down = awaitFirstDown(pass = PointerEventPass.Main)
                     sliderFraction = (down.position.x / size.width).coerceIn(0f, 1f)
-                    containerWidthPx = size.width.toFloat()
                     do {
                         val event = awaitPointerEvent(pass = PointerEventPass.Main)
                         val drag  = event.changes.firstOrNull { it.id == down.id } ?: break

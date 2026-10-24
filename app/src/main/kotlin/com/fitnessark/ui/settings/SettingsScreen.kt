@@ -34,6 +34,7 @@ import com.fitnessark.data.repository.ThemeMode
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import com.fitnessark.ui.theme.IconSize
 import com.fitnessark.ui.theme.Spacing
 
 /** True if notifications can be shown: always pre-Android 13, otherwise only once granted. */
@@ -51,9 +52,11 @@ fun SettingsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var showClearDialog by remember { mutableStateOf(false) }
+    var showClearDialog by rememberSaveable { mutableStateOf(false) }
     // The backup file the user picked, waiting for them to choose merge or replace
     var pendingImportUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    // The backup waiting on the typed confirm for Replace, which deletes everything first
+    var pendingReplaceUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     // Reminders (F5)
     var showTimePicker by rememberSaveable { mutableStateOf(false) }
@@ -65,6 +68,9 @@ fun SettingsScreen(
         val time = pendingReminderTime
         pendingReminderTime = null
         if (granted && time != null) viewModel.setReminder(enabled = true, hour = time.first, minute = time.second)
+        else if (!granted) scope.launch {
+            snackbarHostState.showSnackbar("Notifications are off for Fitness Ark, so the reminder can't be turned on. Allow them in system settings.")
+        }
     }
 
     LaunchedEffect(state.message) {
@@ -241,7 +247,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.lg))
         }
     }
 
@@ -288,10 +294,10 @@ fun SettingsScreen(
                             "values are used, and anything the backup does not have for that day is kept.",
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacing.sm))
                     OutlinedButton(
                         onClick = {
-                            viewModel.importData(uri, ImportMode.REPLACE)
+                            pendingReplaceUri = uri
                             pendingImportUri = null
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -302,7 +308,7 @@ fun SettingsScreen(
                         "Deletes everything on this phone first, so you end up with exactly what is in the backup.",
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacing.sm))
                     TextButton(
                         onClick = { pendingImportUri = null },
                         modifier = Modifier.fillMaxWidth()
@@ -313,9 +319,43 @@ fun SettingsScreen(
         )
     }
 
+    pendingReplaceUri?.let { uri ->
+        // Same typed confirm as Clear All Data: Replace wipes everything on the phone before restoring
+        var typed by rememberSaveable { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { pendingReplaceUri = null },
+            icon = { Icon(Icons.Default.Warning, "Warning", tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Replace everything?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    Text("This deletes all measurements and photos on this phone, then restores the backup. This cannot be undone.")
+                    OutlinedTextField(
+                        value = typed,
+                        onValueChange = { typed = it },
+                        label = { Text("Type REPLACE to confirm") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = typed.trim().equals("REPLACE", ignoreCase = true),
+                    onClick = {
+                        viewModel.importData(uri, ImportMode.REPLACE)
+                        pendingReplaceUri = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Replace Everything") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingReplaceUri = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showClearDialog) {
         // Typing the word is the stronger confirm: a reflex tap on "Delete" can't wipe the data
-        var typed by remember { mutableStateOf("") }
+        var typed by rememberSaveable { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             icon = { Icon(Icons.Default.Warning, "Warning", tint = MaterialTheme.colorScheme.error) },
@@ -383,10 +423,10 @@ fun ReminderSettingRow(
             Switch(checked = settings.enabled, onCheckedChange = null)
         }
         if (settings.enabled) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
             OutlinedButton(onClick = onTimeClick) {
-                Icon(Icons.Default.Schedule, null, Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.Schedule, null, Modifier.size(IconSize.sm))
+                Spacer(Modifier.width(Spacing.sm))
                 Text(DateUtils.formatTimeOfDay(settings.hour, settings.minute))
             }
         }

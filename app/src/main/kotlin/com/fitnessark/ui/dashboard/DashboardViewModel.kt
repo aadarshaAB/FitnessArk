@@ -18,8 +18,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.util.concurrent.TimeUnit
 
 data class DashboardUiState(
     val todayWeight: Float? = null,
@@ -68,20 +66,20 @@ class DashboardViewModel(
     /** [measurements] arrive newest-first. */
     private fun buildState(measurements: List<MeasurementEntity>, latestPhoto: PhotoEntity?): DashboardUiState {
         val now = System.currentTimeMillis()
-        val today = DateUtils.getStartOfDay(now)
-        val sevenDaysAgo = today - TimeUnit.DAYS.toMillis(7)
 
-        val weighed = measurements.filter { it.weight != null && it.date >= sevenDaysAgo }
-        val weightChange = if (weighed.size >= 2) {
-            weighed.first().weight!! - weighed.last().weight!!   // newest - oldest
-        } else null
+        // The same 7 calendar days (today and the 6 before) as the day chips and the weekly average.
+        val weighed = measurements.filter {
+            it.weight != null && DateUtils.daysBefore(it.date, now) in 0 until TrendLine.WINDOW_DAYS
+        }
+        val weightChange = weighed.firstOrNull()?.weight?.let { newest ->
+            weighed.lastOrNull()?.weight?.takeIf { weighed.size >= 2 }?.let { newest - it }   // newest - oldest
+        }
 
         val todayKey = DateUtils.localDateKey(now)
         val loggedDays = measurements.map { it.localDate }.toSet()
-        val todayDate = LocalDate.parse(todayKey)
         return DashboardUiState(
-            recentLogged = (6 downTo 0).map { todayDate.minusDays(it.toLong()).toString() in loggedDays },
-            recentWeights = weighed.reversed().map { it.weight!! },
+            recentLogged = (6 downTo 0).map { DateUtils.localDateKeyDaysBefore(now, it) in loggedDays },
+            recentWeights = weighed.reversed().mapNotNull { it.weight },
             todayWeight = measurements.firstOrNull { it.localDate == todayKey }?.weight,
             streakDays = measurementRepo.streakOf(measurements),
             latestPhoto = latestPhoto,

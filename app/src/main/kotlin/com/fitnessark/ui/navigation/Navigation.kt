@@ -101,134 +101,134 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
 
         // Wide screens (tablet, landscape): content keeps a readable width and is centred
         Box(Modifier.padding(paddingValues).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        NavHost(
-            navController    = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier         = Modifier.widthIn(max = ContentMaxWidth).fillMaxSize(),
-            enterTransition    = { if (isDetail(targetState.destination.route)) detailEnter else tabEnter },
-            exitTransition     = { tabExit },
-            popEnterTransition = { tabEnter },
-            popExitTransition  = { if (isDetail(initialState.destination.route)) detailExit else tabExit }
-        ) {
+            NavHost(
+                navController    = navController,
+                startDestination = Screen.Dashboard.route,
+                modifier         = Modifier.widthIn(max = ContentMaxWidth).fillMaxSize(),
+                enterTransition    = { if (isDetail(targetState.destination.route)) detailEnter else tabEnter },
+                exitTransition     = { tabExit },
+                popEnterTransition = { tabEnter },
+                popExitTransition  = { if (isDetail(initialState.destination.route)) detailExit else tabExit }
+            ) {
 
-            // ── Bottom nav destinations ────────────────────────────────
-            composable(Screen.Dashboard.route) {
-                DashboardScreen(
-                    onNavigateToCheckin  = { navController.navigate("checkin?date=${System.currentTimeMillis()}") },
-                    onNavigateToProgress = { navigateToTab(Screen.Measurements.route) },
-                    onNavigateToPhotos   = { navigateToTab(Screen.Photos.route) },
-                    openWeightDialogOnStart = openWeightDialogOnStart
-                )
-            }
+                // ── Bottom nav destinations ────────────────────────────────
+                composable(Screen.Dashboard.route) {
+                    DashboardScreen(
+                        onNavigateToCheckin  = { navController.navigate("checkin?date=${System.currentTimeMillis()}") { launchSingleTop = true } },
+                        onNavigateToProgress = { navigateToTab(Screen.Measurements.route) },
+                        onNavigateToPhotos   = { navigateToTab(Screen.Photos.route) },
+                        openWeightDialogOnStart = openWeightDialogOnStart
+                    )
+                }
 
-            composable(Screen.Measurements.route) {
-                MeasurementsScreen()
-            }
+                composable(Screen.Measurements.route) {
+                    MeasurementsScreen()
+                }
 
-            composable(Screen.Photos.route) {
-                PhotoTimelineScreen(
-                    onNavigateToDetail = { id -> navController.navigate("photo/$id") }
-                )
-            }
+                composable(Screen.Photos.route) {
+                    PhotoTimelineScreen(
+                        onNavigateToDetail = { id -> navController.navigate("photo/$id") { launchSingleTop = true } }
+                    )
+                }
 
-            composable(Screen.Settings.route) {
-                SettingsScreen()
-            }
+                composable(Screen.Settings.route) {
+                    SettingsScreen()
+                }
 
-            // ── Full check-in — single route with optional date arg ────
-            // Navigate with "checkin" (uses defaultValue = now) or
-            // "checkin?date=<timestamp>" for a specific date.
-            composable(
-                route     = "checkin?date={date}",
-                arguments = listOf(
-                    navArgument("date") {
-                        type         = NavType.LongType
-                        defaultValue = System.currentTimeMillis()
-                    }
-                )
-            ) { backStackEntry ->
-                val date = backStackEntry.arguments?.getLong("date")
-                    ?: System.currentTimeMillis()
-                CheckinScreen(
-                    date           = date,
-                    onNavigateBack = { navController.popBackStack() },
-                    onOpenInAppCamera = { angle ->
-                        navController.navigate("camera/${angle.name}")
-                    },
-                    cameraResult = backStackEntry.savedStateHandle
-                        .getStateFlow<String?>(CAMERA_RESULT_KEY, null)
-                        .collectAsState(),
-                    onCameraResultConsumed = {
-                        backStackEntry.savedStateHandle[CAMERA_RESULT_KEY] = null
-                    },
-                    cameraFailed = backStackEntry.savedStateHandle
-                        .getStateFlow(CAMERA_FAILURE_KEY, false)
-                        .collectAsState(),
-                    onCameraFailureConsumed = {
-                        backStackEntry.savedStateHandle[CAMERA_FAILURE_KEY] = false
-                    }
-                )
-            }
+                // ── Full check-in — single route with optional date arg ────
+                // Navigate with "checkin" (uses defaultValue = now) or
+                // "checkin?date=<timestamp>" for a specific date.
+                composable(
+                    route     = "checkin?date={date}",
+                    arguments = listOf(
+                        navArgument("date") {
+                            type         = NavType.LongType
+                            defaultValue = System.currentTimeMillis()
+                        }
+                    )
+                ) { backStackEntry ->
+                    val date = backStackEntry.arguments?.getLong("date")
+                        ?: System.currentTimeMillis()
+                    CheckinScreen(
+                        date           = date,
+                        onNavigateBack = { navController.popBackStack() },
+                        onOpenInAppCamera = { angle ->
+                            navController.navigate("camera/${angle.name}") { launchSingleTop = true }
+                        },
+                        cameraResult = backStackEntry.savedStateHandle
+                            .getStateFlow<String?>(CAMERA_RESULT_KEY, null)
+                            .collectAsState(),
+                        onCameraResultConsumed = {
+                            backStackEntry.savedStateHandle[CAMERA_RESULT_KEY] = null
+                        },
+                        cameraFailed = backStackEntry.savedStateHandle
+                            .getStateFlow(CAMERA_FAILURE_KEY, false)
+                            .collectAsState(),
+                        onCameraFailureConsumed = {
+                            backStackEntry.savedStateHandle[CAMERA_FAILURE_KEY] = false
+                        }
+                    )
+                }
 
-            // ── Photo detail ───────────────────────────────────────────
-            composable(
-                route     = "photo/{id}",
-                arguments = listOf(navArgument("id") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("id") ?: return@composable
-                PhotoDetailScreen(
-                    photoId        = id,
-                    onNavigateBack = { navController.popBackStack() },
-                    onOpenInAppCamera = { angle ->
-                        navController.navigate("camera/${angle.name}")
-                    },
-                    cameraResult = backStackEntry.savedStateHandle
-                        .getStateFlow<String?>(CAMERA_RESULT_KEY, null)
-                        .collectAsState(),
-                    onCameraResultConsumed = {
-                        backStackEntry.savedStateHandle[CAMERA_RESULT_KEY] = null
-                    },
-                    cameraFailed = backStackEntry.savedStateHandle
-                        .getStateFlow(CAMERA_FAILURE_KEY, false)
-                        .collectAsState(),
-                    onCameraFailureConsumed = {
-                        backStackEntry.savedStateHandle[CAMERA_FAILURE_KEY] = false
-                    }
-                )
-            }
+                // ── Photo detail ───────────────────────────────────────────
+                composable(
+                    route     = "photo/{id}",
+                    arguments = listOf(navArgument("id") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("id") ?: return@composable
+                    PhotoDetailScreen(
+                        photoId        = id,
+                        onNavigateBack = { navController.popBackStack() },
+                        onOpenInAppCamera = { angle ->
+                            navController.navigate("camera/${angle.name}") { launchSingleTop = true }
+                        },
+                        cameraResult = backStackEntry.savedStateHandle
+                            .getStateFlow<String?>(CAMERA_RESULT_KEY, null)
+                            .collectAsState(),
+                        onCameraResultConsumed = {
+                            backStackEntry.savedStateHandle[CAMERA_RESULT_KEY] = null
+                        },
+                        cameraFailed = backStackEntry.savedStateHandle
+                            .getStateFlow(CAMERA_FAILURE_KEY, false)
+                            .collectAsState(),
+                        onCameraFailureConsumed = {
+                            backStackEntry.savedStateHandle[CAMERA_FAILURE_KEY] = false
+                        }
+                    )
+                }
 
-            // ── In-app camera (F11) ─────────────────────────────────────
-            // The route arg is the PhotoAngle's own name — the single source of truth for which
-            // pose slot the result belongs to — not a separately-tracked "pending slot" in the
-            // caller, which could in principle drift from what the route actually opened for.
-            // The captured Uri is handed back via the caller's SavedStateHandle (Navigation-
-            // Compose's standard "return a result" pattern).
-            composable(
-                route     = "camera/{angle}",
-                arguments = listOf(navArgument("angle") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val angle = backStackEntry.arguments?.getString("angle")
-                    ?.let { PhotoAngle.fromNameOrNull(it) }
-                    ?: return@composable
-                InAppCameraScreen(
-                    poseLabel  = angle.label,
-                    poseKey    = angle.fileKey,
-                    onCaptured = { uri ->
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set(CAMERA_RESULT_KEY, uri.toString())
-                        navController.popBackStack()
-                    },
-                    onCaptureFailed = {
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set(CAMERA_FAILURE_KEY, true)
-                        navController.popBackStack()
-                    },
-                    onCancel = { navController.popBackStack() }
-                )
+                // ── In-app camera (F11) ─────────────────────────────────────
+                // The route arg is the PhotoAngle's own name — the single source of truth for which
+                // pose slot the result belongs to — not a separately-tracked "pending slot" in the
+                // caller, which could in principle drift from what the route actually opened for.
+                // The captured Uri is handed back via the caller's SavedStateHandle (Navigation-
+                // Compose's standard "return a result" pattern).
+                composable(
+                    route     = "camera/{angle}",
+                    arguments = listOf(navArgument("angle") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val angle = backStackEntry.arguments?.getString("angle")
+                        ?.let { PhotoAngle.fromNameOrNull(it) }
+                        ?: return@composable
+                    InAppCameraScreen(
+                        poseLabel  = angle.label,
+                        poseKey    = angle.fileKey,
+                        onCaptured = { uri ->
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set(CAMERA_RESULT_KEY, uri.toString())
+                            navController.popBackStack()
+                        },
+                        onCaptureFailed = {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set(CAMERA_FAILURE_KEY, true)
+                            navController.popBackStack()
+                        },
+                        onCancel = { navController.popBackStack() }
+                    )
+                }
             }
-        }
         }
     }
 }

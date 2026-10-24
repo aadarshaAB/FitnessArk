@@ -68,4 +68,12 @@ object DateUtils {
     /** Whole calendar days between the days of [start] and [end] (order doesn't matter). */
     fun getDaysBetween(start: Long, end: Long): Int =
         kotlin.math.abs(ChronoUnit.DAYS.between(localDate(start), localDate(end))).toInt()
+
+    /** Whole calendar days from [timestamp]'s day up to [now]'s day: positive for the past, negative for a later day. */
+    fun daysBefore(timestamp: Long, now: Long): Int =
+        ChronoUnit.DAYS.between(localDate(timestamp), localDate(now)).toInt()
+
+    /** ISO local date (yyyy-MM-dd) of the day [days] before [timestamp]'s day. */
+    fun localDateKeyDaysBefore(timestamp: Long, days: Int): String =
+        localDate(timestamp).minusDays(days.toLong()).toString()
 }

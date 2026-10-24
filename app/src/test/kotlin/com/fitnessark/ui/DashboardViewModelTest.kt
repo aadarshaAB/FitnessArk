@@ -58,6 +58,17 @@ class DashboardViewModelTest {
         assertEquals(78f, state.todayWeight!!, 0.001f)
     }
 
+    @Test fun seven_day_change_covers_seven_calendar_days_not_eight() = runBlocking {
+        repo.saveMeasurement(MeasurementEntity(date = noon(7), weight = 90f))   // 7 days ago: outside the window
+        repo.saveMeasurement(MeasurementEntity(date = noon(6), weight = 80f))
+        repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 78f))
+
+        val state = viewModel().uiState.await { !it.isLoading }
+
+        assertEquals(-2f, state.weightChangeLast7Days!!, 0.001f)
+        assertEquals(listOf(80f, 78f), state.recentWeights)
+    }
+
     @Test fun no_change_is_reported_with_fewer_than_two_weights() = runBlocking {
         repo.saveMeasurement(MeasurementEntity(date = noon(0), weight = 78f))
         repo.saveMeasurement(MeasurementEntity(date = noon(2), weight = null))

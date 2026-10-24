@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -60,10 +61,10 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    var showWeightDialog by remember { mutableStateOf(false) }
-    var weightInput by remember { mutableStateOf("") }
+    var showWeightDialog by rememberSaveable { mutableStateOf(false) }
+    var weightInput by rememberSaveable { mutableStateOf("") }
     // What the dialog was opened with, so an unchanged value isn't re-saved through a rounded lb round trip
-    var weightInitial by remember { mutableStateOf("") }
+    var weightInitial by rememberSaveable { mutableStateOf("") }
     val unitSystem = LocalUnitSystem.current
     val weightUnit = Metric.WEIGHT.unit(unitSystem)
     fun openWeightDialog() {
@@ -116,18 +117,18 @@ fun DashboardScreen(
             }
 
             // Latest Photo Preview
-            if (state.latestPhoto != null) {
+            state.latestPhoto?.let { photo ->
                 LatestPhotoCard(
                     // The pre-generated thumbnail, not a full-res angle path: this preview is
                     // blurred by default (see LatestPhotoCard), so there's no reason to decode
                     // the larger image just to immediately obscure it.
-                    photoPath = state.latestPhoto!!.thumbnailPath,
-                    date = state.latestPhoto!!.date,
+                    photoPath = photo.thumbnailPath,
+                    date = photo.date,
                     onClick = onNavigateToPhotos
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
         }
     }
 
@@ -180,7 +181,7 @@ fun HeroCard(
         Column(
             modifier = Modifier
                 .clickable(onClickLabel = "Edit today's weight", onClick = onEditWeight)
-                .padding(20.dp),
+                .padding(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -190,7 +191,7 @@ fun HeroCard(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(Spacing.xs))
                 Text(
                     text = "${state.streakDays} day streak",
                     style = MaterialTheme.typography.titleMedium,
@@ -244,16 +245,16 @@ private fun WeekChange(weightChange: Float?, weeklyAverage: Float?, unitSystem: 
         else                                       -> Icons.Default.ArrowDownward
     }
     val changeText = when {
-        weightChange == null -> "—"
-        weightChange == 0f   -> "No change"
-        else                 -> "%+.1f %s".format(
+        weightChange == null -> "Log 2+ weights this week for a 7-day change"
+        weightChange == 0f   -> "No change in 7 days"
+        else                 -> "%+.1f %s in 7 days".format(
             Metric.WEIGHT.toDisplay(weightChange, unitSystem), Metric.WEIGHT.unit(unitSystem))
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(Spacing.xs))
         Text(
-            text = "$changeText in 7 days",
+            text = changeText,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold
         )
@@ -291,7 +292,7 @@ private fun WeekStrip(logged: List<Boolean>) {
                 )
             }
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(Spacing.md))
         Text(
             text = "${logged.count { it }}/7 days",
             style = MaterialTheme.typography.bodySmall,
