@@ -7,9 +7,8 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -124,16 +123,16 @@ fun SettingsScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 8.dp).selectableGroup(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioOption("Dark", state.themeMode == ThemeMode.DARK,
-                            { viewModel.setThemeMode(ThemeMode.DARK) }, Modifier.weight(1f))
-                        RadioOption("Light", state.themeMode == ThemeMode.LIGHT,
-                            { viewModel.setThemeMode(ThemeMode.LIGHT) }, Modifier.weight(1f))
-                        RadioOption("System", state.themeMode == ThemeMode.SYSTEM,
-                            { viewModel.setThemeMode(ThemeMode.SYSTEM) }, Modifier.weight(1f))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        val modes = listOf(ThemeMode.DARK to "Dark", ThemeMode.LIGHT to "Light", ThemeMode.SYSTEM to "System")
+                        modes.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = state.themeMode == mode,
+                                onClick  = { viewModel.setThemeMode(mode) },
+                                shape    = SegmentedButtonDefaults.itemShape(index, modes.size),
+                                label    = { Text(label) }
+                            )
+                        }
                     }
                 }
             }
@@ -149,17 +148,18 @@ fun SettingsScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 8.dp).selectableGroup(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        UnitSystem.entries.forEach { system ->
-                            RadioOption("${system.label} (${system.hint})", state.unitSystem == system,
-                                { viewModel.setUnitSystem(system) }, Modifier.weight(1f))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        UnitSystem.entries.forEachIndexed { index, system ->
+                            SegmentedButton(
+                                selected = state.unitSystem == system,
+                                onClick  = { viewModel.setUnitSystem(system) },
+                                shape    = SegmentedButtonDefaults.itemShape(index, UnitSystem.entries.size),
+                                label    = { Text(system.label) }
+                            )
                         }
                     }
                     Text(
-                        "Your data is always stored in kg and cm, so you can switch any time.",
+                        "Metric uses kg and cm, Imperial uses lb and in. Your data is always stored in kg and cm, so you can switch any time.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -210,15 +210,22 @@ fun SettingsScreen(
                             importLauncher.launch(arrayOf("application/zip", "*/*"))
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsActionItem(
-                        icon = Icons.Default.DeleteForever,
-                        title = "Clear All Data",
-                        subtitle = "Delete all measurements and photos",
-                        isDestructive = true,
-                        onClick = { showClearDialog = true }
-                    )
                 }
+            }
+
+            // Danger zone: kept apart from backup so a stray tap near Export/Import can't reach it
+            SettingsSectionHeader("Danger zone", isDestructive = true)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+            ) {
+                SettingsActionItem(
+                    icon = Icons.Default.DeleteForever,
+                    title = "Clear All Data",
+                    subtitle = "Delete all measurements and photos. Export a backup first.",
+                    isDestructive = true,
+                    onClick = { showClearDialog = true }
+                )
             }
 
             // About Section
@@ -260,52 +267,72 @@ fun SettingsScreen(
     }
 
     pendingImportUri?.let { uri ->
+        // Three full-width actions, stacked: Replace deletes everything first, so it gets its own row
+        // and its own explanation instead of sitting beside Cancel.
         AlertDialog(
             onDismissRequest = { pendingImportUri = null },
             icon = { Icon(Icons.Default.FileDownload, null) },
             title = { Text("Import backup") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Merge adds the backup to what's on this phone. If a day is in both, " +
-                        "the backup's values are used, and anything the backup doesn't have for " +
-                        "that day is kept.")
-                    Text("Replace deletes everything on this phone first, so you end up with " +
-                        "exactly what's in the backup.")
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.importData(uri, ImportMode.MERGE)
-                    pendingImportUri = null
-                }) { Text("Merge") }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { pendingImportUri = null }) { Text("Cancel") }
-                    TextButton(
+                    Button(
+                        onClick = {
+                            viewModel.importData(uri, ImportMode.MERGE)
+                            pendingImportUri = null
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Merge") }
+                    Text(
+                        "Adds the backup to what is on this phone. If a day is in both, the backup's " +
+                            "values are used, and anything the backup does not have for that day is kept.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
                         onClick = {
                             viewModel.importData(uri, ImportMode.REPLACE)
                             pendingImportUri = null
                         },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) { Text("Replace") }
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    ) { Text("Replace everything") }
+                    Text(
+                        "Deletes everything on this phone first, so you end up with exactly what is in the backup.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { pendingImportUri = null },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Cancel") }
                 }
-            }
+            },
+            confirmButton = {}
         )
     }
 
     if (showClearDialog) {
+        // Typing the word is the stronger confirm: a reflex tap on "Delete" can't wipe the data
+        var typed by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             icon = { Icon(Icons.Default.Warning, "Warning", tint = MaterialTheme.colorScheme.error) },
             title = { Text("Clear All Data?") },
             text = {
-                Text("This will permanently delete ALL measurements, photos, and progress data. This action cannot be undone.")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("This will permanently delete ALL measurements, photos, and progress data. This action cannot be undone.")
+                    OutlinedTextField(
+                        value = typed,
+                        onValueChange = { typed = it },
+                        label = { Text("Type DELETE to confirm") },
+                        singleLine = true
+                    )
+                }
             },
             confirmButton = {
                 Button(
+                    enabled = typed.trim().equals("DELETE", ignoreCase = true),
                     onClick = {
                         viewModel.clearAllData()
                         showClearDialog = false
@@ -320,32 +347,12 @@ fun SettingsScreen(
     }
 }
 
-/** A radio button whose label is part of the tap target, at least 48dp tall. */
 @Composable
-private fun RadioOption(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Spacer(Modifier.width(4.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@Composable
-fun SettingsSectionHeader(title: String) {
+fun SettingsSectionHeader(title: String, isDestructive: Boolean = false) {
     Text(
         title.uppercase(),
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
+        color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.SemiBold
     )
 }
