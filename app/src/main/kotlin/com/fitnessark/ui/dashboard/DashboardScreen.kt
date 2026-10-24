@@ -1,5 +1,6 @@
 package com.fitnessark.ui.dashboard
 
+import android.os.Build
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -376,17 +377,29 @@ fun LatestPhotoCard(photoPath: String?, date: Long, onClick: () -> Unit) {
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
             if (photoPath != null) {
-                AsyncImage(
-                    model = photoPath,
-                    // Doesn't announce "Latest photo" while blurred: a screen reader shouldn't
-                    // confirm a body photo is there when sighted users can't make it out either.
-                    contentDescription = if (revealed) "Latest photo" else "Hidden photo, double tap to show",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(MaterialTheme.shapes.large)
-                        .then(if (!revealed) Modifier.blur(24.dp) else Modifier)
-                )
+                // Modifier.blur is a no-op below API 31 (minSdk is 29), so there the photo isn't
+                // drawn at all until revealed — otherwise the "blurred by default" gate would show
+                // the photo in the clear on Android 10-11.
+                if (!revealed && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clip(MaterialTheme.shapes.large)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    )
+                } else {
+                    AsyncImage(
+                        model = photoPath,
+                        // Doesn't announce "Latest photo" while blurred: a screen reader shouldn't
+                        // confirm a body photo is there when sighted users can't make it out either.
+                        contentDescription = if (revealed) "Latest photo" else "Hidden photo, double tap to show",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(MaterialTheme.shapes.large)
+                            .then(if (!revealed) Modifier.blur(24.dp) else Modifier)
+                    )
+                }
                 // Date overlay
                 Box(
                     modifier = Modifier
