@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.model.pathFor
-import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -273,7 +272,7 @@ fun PhotoDetailScreen(
         val angleLabel = retakeAngle?.label.orEmpty()
         AlertDialog(
             onDismissRequest = { showSourceDialog = false; retakeAngle = null },
-            icon  = { Icon(Icons.Default.AddAPhoto, null, tint = CyanPrimary,
+            icon  = { Icon(Icons.Default.AddAPhoto, null, tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(30.dp)) },
             title = { Text("Retake $angleLabel Photo") },
             text  = { Text("How would you like to add the new photo?") },

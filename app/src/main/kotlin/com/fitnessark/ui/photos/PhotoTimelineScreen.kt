@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,12 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -36,7 +43,6 @@ import coil.compose.AsyncImage
 import com.fitnessark.data.local.entity.PhotoEntity
 import com.fitnessark.data.model.PhotoAngle
 import com.fitnessark.data.model.pathFor
-import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
@@ -59,7 +65,7 @@ fun PhotoTimelineScreen(
                         Icon(
                             Icons.Default.CompareArrows,
                             contentDescription = "Before/After",
-                            tint = if (state.beforeAfterMode) CyanPrimary
+                            tint = if (state.beforeAfterMode) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -72,7 +78,7 @@ fun PhotoTimelineScreen(
     ) { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = CyanPrimary)
+                CircularProgressIndicator()
             }
         } else if (state.photos.isEmpty()) {
             EmptyPhotosState(modifier = Modifier.padding(padding))
@@ -137,15 +143,12 @@ fun PhotoTimelineScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Spacer(Modifier.width(4.dp))
-                                    IconButton(
-                                        onClick = { showDeleteDialog = photo.id },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
+                                    IconButton(onClick = { showDeleteDialog = photo.id }) {
                                         Icon(
                                             Icons.Default.Delete,
                                             contentDescription = "Delete day",
                                             tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
@@ -171,7 +174,7 @@ fun PhotoTimelineScreen(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clickable { viewModel.selectPhoto(photo.id) },
-                            border = if (isSelected) BorderStroke(2.dp, CyanPrimary) else null,
+                            border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
                             shape  = RoundedCornerShape(8.dp)
                         ) {
                             Box(Modifier.fillMaxSize()) {
@@ -351,6 +354,16 @@ private fun SliderComparisonView(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
+            // Drag isn't the only way: a screen reader (or switch) can step the divider instead
+            .semantics {
+                contentDescription = "Before and after comparison slider"
+                stateDescription = "${(sliderFraction * 100).roundToInt()} percent before photo"
+                progressBarRangeInfo = ProgressBarRangeInfo(sliderFraction, 0f..1f, steps = 19)
+                setProgress { target ->
+                    sliderFraction = target.coerceIn(0f, 1f)
+                    true
+                }
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(pass = PointerEventPass.Main)
@@ -416,7 +429,7 @@ private fun SliderComparisonView(
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("◀▶", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+            Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = Color.Black)
         }
         Surface(
             modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp),

@@ -50,7 +50,7 @@ fun FitnessArkNavHost(openWeightDialogOnStart: Boolean = false) {
                 NavigationBar {
                     bottomNavScreens.forEach { screen ->
                         NavigationBarItem(
-                            icon  = { Icon(screen.icon, contentDescription = screen.label) },
+                            icon  = { Icon(screen.icon, contentDescription = null) },
                             label = { Text(screen.label) },
                             selected = currentRoute == screen.route,
                             onClick = {

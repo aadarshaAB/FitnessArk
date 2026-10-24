@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 // Brand colors
 val CyanPrimary = Color(0xFF00E5FF)
@@ -57,6 +58,11 @@ private val LightColorScheme = lightColorScheme(
     error = Color(0xFFBA1A1A),
     outline = Color(0xFF71787D)
 )
+
+/** "Saved / done" green, readable on the current theme's surfaces (never used for good-vs-bad). */
+@Composable
+fun successColor(): Color =
+    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) SuccessGreen else Color(0xFF1B5E20)
 
 @Composable
 fun FitnessArkTheme(

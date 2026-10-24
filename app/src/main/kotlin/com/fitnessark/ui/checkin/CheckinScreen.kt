@@ -34,7 +34,7 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.fitnessark.data.model.Metric
 import com.fitnessark.data.model.PhotoAngle
-import com.fitnessark.ui.theme.CyanPrimary
+import com.fitnessark.ui.theme.successColor
 import com.fitnessark.util.DateUtils
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -166,6 +166,8 @@ fun CheckinScreen(
             // Date badge — tap to log or edit another day
             Surface(
                 onClick = { showDatePicker = true },
+                // The badge stays compact, but its tap area is the full 48dp
+                modifier = Modifier.minimumInteractiveComponentSize(),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -365,7 +367,7 @@ fun CheckinScreen(
             icon = {
                 Icon(Icons.Default.AddAPhoto,
                     contentDescription = null,
-                    tint = CyanPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp))
             }
         )
@@ -408,7 +410,7 @@ private fun PoseCaptureCard(
                     .background(MaterialTheme.colorScheme.background)
                     .border(
                         width = if (captured) 2.dp else 1.dp,
-                        color = if (captured) CyanPrimary
+                        color = if (captured) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(12.dp)
                     ),
@@ -427,11 +429,11 @@ private fun PoseCaptureCard(
                             .size(22.dp)
                             .align(Alignment.TopEnd)
                             .offset(x = 6.dp, y = (-6).dp)
-                            .background(Color(0xFF4CAF50), CircleShape),
+                            .background(successColor(), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.Check, null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.background,
                             modifier = Modifier.size(14.dp))
                     }
                 } else {
@@ -461,12 +463,12 @@ private fun PoseCaptureCard(
                     )
                     if (captured) {
                         Surface(
-                            color = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                            color = successColor().copy(alpha = 0.15f),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text("✓ Done",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF4CAF50),
+                                color = successColor(),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     }
@@ -532,7 +534,7 @@ private fun SectionHeader(
     Row(verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(icon, contentDescription = null,
-            tint = CyanPrimary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp))
         Text(title,
             style = MaterialTheme.typography.titleMedium,

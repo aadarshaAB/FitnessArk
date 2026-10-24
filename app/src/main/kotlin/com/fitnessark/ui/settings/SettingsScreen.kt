@@ -8,6 +8,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -28,7 +32,6 @@ import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.data.repository.ImportMode
 import com.fitnessark.data.repository.ReminderSettings
 import com.fitnessark.data.repository.ThemeMode
-import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -122,20 +125,15 @@ fun SettingsScreen(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 8.dp).selectableGroup(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = state.themeMode == ThemeMode.DARK,
-                            onClick = { viewModel.setThemeMode(ThemeMode.DARK) })
-                        Text("Dark", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(16.dp))
-                        RadioButton(selected = state.themeMode == ThemeMode.LIGHT,
-                            onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) })
-                        Text("Light", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(16.dp))
-                        RadioButton(selected = state.themeMode == ThemeMode.SYSTEM,
-                            onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) })
-                        Text("System", style = MaterialTheme.typography.bodyMedium)
+                        RadioOption("Dark", state.themeMode == ThemeMode.DARK,
+                            { viewModel.setThemeMode(ThemeMode.DARK) }, Modifier.weight(1f))
+                        RadioOption("Light", state.themeMode == ThemeMode.LIGHT,
+                            { viewModel.setThemeMode(ThemeMode.LIGHT) }, Modifier.weight(1f))
+                        RadioOption("System", state.themeMode == ThemeMode.SYSTEM,
+                            { viewModel.setThemeMode(ThemeMode.SYSTEM) }, Modifier.weight(1f))
                     }
                 }
             }
@@ -152,15 +150,12 @@ fun SettingsScreen(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 8.dp).selectableGroup(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         UnitSystem.entries.forEach { system ->
-                            RadioButton(selected = state.unitSystem == system,
-                                onClick = { viewModel.setUnitSystem(system) })
-                            Text("${system.label} (${system.hint})",
-                                style = MaterialTheme.typography.bodyMedium)
-                            Spacer(Modifier.width(12.dp))
+                            RadioOption("${system.label} (${system.hint})", state.unitSystem == system,
+                                { viewModel.setUnitSystem(system) }, Modifier.weight(1f))
                         }
                     }
                     Text(
@@ -325,6 +320,26 @@ fun SettingsScreen(
     }
 }
 
+/** A radio button whose label is part of the tap target, at least 48dp tall. */
+@Composable
+private fun RadioOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 @Composable
 fun SettingsSectionHeader(title: String) {
     Text(
@@ -344,7 +359,9 @@ fun ReminderSettingRow(
 ) {
     Column(Modifier.padding(16.dp)) {
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .toggleable(value = settings.enabled, role = Role.Switch, onValueChange = onToggle),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
@@ -355,7 +372,7 @@ fun ReminderSettingRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Switch(checked = settings.enabled, onCheckedChange = onToggle)
+            Switch(checked = settings.enabled, onCheckedChange = null)
         }
         if (settings.enabled) {
             Spacer(Modifier.height(8.dp))
@@ -386,7 +403,7 @@ fun SettingsActionItem(
         ) {
             Icon(
                 icon,
-                contentDescription = title,
+                contentDescription = null,
                 tint = if (isDestructive) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
@@ -406,7 +423,7 @@ fun SettingsActionItem(
                 )
             }
             if (isLoading) {
-                CircularProgressIndicator(Modifier.size(20.dp), color = CyanPrimary)
+                CircularProgressIndicator(Modifier.size(20.dp))
             }
         }
     }

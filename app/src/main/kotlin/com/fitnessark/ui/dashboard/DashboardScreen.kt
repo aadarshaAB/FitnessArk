@@ -34,7 +34,6 @@ import coil.compose.AsyncImage
 import com.fitnessark.data.model.Metric
 import com.fitnessark.data.model.UnitSystem
 import com.fitnessark.ui.theme.LocalUnitSystem
-import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.util.DateUtils
 import com.fitnessark.util.MeasurementInput
 import org.koin.androidx.compose.koinViewModel
@@ -81,7 +80,7 @@ fun DashboardScreen(
     ) { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = CyanPrimary)
+                CircularProgressIndicator()
             }
             return@Scaffold
         }
@@ -202,7 +201,7 @@ fun StreakCard(streak: Int) {
         ) {
             Icon(
                 Icons.Default.LocalFireDepartment,
-                contentDescription = "Streak",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(36.dp)
             )
@@ -283,7 +282,7 @@ fun ProgressOverviewCard(weightChange: Float?, weeklyAverage: Float?, unitSystem
 
             Icon(
                 imageVector = trendIcon,
-                contentDescription = "Trend",
+                contentDescription = null,
                 tint = trendColor,
                 modifier = Modifier.size(28.dp)
             )

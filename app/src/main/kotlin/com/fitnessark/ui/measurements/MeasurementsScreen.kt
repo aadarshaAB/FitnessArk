@@ -24,16 +24,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.fitnessark.data.local.entity.MeasurementEntity
 import com.fitnessark.data.model.Metric
-import com.fitnessark.ui.theme.CyanPrimary
 import com.fitnessark.ui.theme.LocalUnitSystem
 import com.fitnessark.util.DateUtils
 import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -83,7 +85,7 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
                                 if (state.comparisonMode) Icons.Default.Close
                                 else Icons.Default.ShowChart,
                                 contentDescription = "Compare",
-                                tint = if (state.comparisonMode) CyanPrimary
+                                tint = if (state.comparisonMode) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -140,7 +142,7 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
 
             if (state.isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = CyanPrimary)
+                    CircularProgressIndicator()
                 }
                 return@Scaffold
             }
@@ -175,6 +177,14 @@ private fun ChartView(
         return
     }
 
+    // Spoken summary: a screen reader can't read the drawn chart, so give the range in words
+    val first = chartData.first()
+    val last  = chartData.last()
+    val chartSummary = "${state.selectedMetric.label} chart, ${chartData.size} entries, " +
+        "from ${state.selectedMetric.format(first.y, unitSystem)} on ${chartLabels[first.x].orEmpty()} " +
+        "to ${state.selectedMetric.format(last.y, unitSystem)} on ${chartLabels[last.x].orEmpty()}. " +
+        "Switch to the table view to hear every value."
+
     Column(Modifier.fillMaxSize()) {
 
         // ── Line chart ────────────────────────────────────────────────────
@@ -191,6 +201,7 @@ private fun ChartView(
                 .fillMaxWidth()
                 .height(260.dp)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
+                .semantics { contentDescription = chartSummary }
         )
 
         // ── Day detail card (slides in when a dot is tapped) ──────────────
@@ -265,15 +276,12 @@ fun DayDetailCard(
                     Text(
                         "Tap another dot to compare",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     // Delete entry
-                    IconButton(
-                        onClick  = { showDeleteConfirm = true },
-                        modifier = Modifier.size(32.dp)
-                    ) {
+                    IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "Delete entry",
@@ -282,10 +290,7 @@ fun DayDetailCard(
                         )
                     }
                     // Dismiss card
-                    IconButton(
-                        onClick  = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
+                    IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Dismiss",
@@ -308,20 +313,20 @@ fun DayDetailCard(
                     highlightValue?.let { "%.1f".format(selectedMetric.toDisplay(it, unitSystem)) } ?: "—",
                     style      = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color      = CyanPrimary
+                    color      = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     selectedMetric.unit(unitSystem),
                     style    = MaterialTheme.typography.bodyMedium,
-                    color    = CyanPrimary.copy(alpha = 0.8f),
+                    color    = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     selectedMetric.label,
                     style  = MaterialTheme.typography.bodySmall,
-                    color  = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    color  = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
@@ -357,7 +362,7 @@ fun DayDetailCard(
                 Text(
                     "📝  ${measurement.notes}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
@@ -405,14 +410,14 @@ private fun MetricCell(
         Text(
             label,
             style  = MaterialTheme.typography.labelSmall,
-            color  = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f)
+            color  = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
         )
         Text(
             value,
             style      = MaterialTheme.typography.bodySmall,
             fontWeight = if (muted) FontWeight.Normal else FontWeight.SemiBold,
             color      = if (muted)
-                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f)
+                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
             else
                 MaterialTheme.colorScheme.onPrimaryContainer
         )
@@ -431,7 +436,7 @@ fun MeasurementLineChart(
     onNothingSelected: () -> Unit,
     modifier:         Modifier = Modifier
 ) {
-    val primaryColor      = CyanPrimary.toArgb()
+    val primaryColor      = MaterialTheme.colorScheme.primary.toArgb()
     val trendColor        = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f).toArgb()
     val onSurfaceColor    = MaterialTheme.colorScheme.onSurface.toArgb()
     val highlightColor    = MaterialTheme.colorScheme.tertiary.toArgb()
@@ -442,7 +447,13 @@ fun MeasurementLineChart(
         factory = { ctx ->
             LineChart(ctx).apply {
                 description.isEnabled  = false
-                legend.isEnabled       = false
+                // Names the solid line and the dashed 7-day average, so they differ by more than colour
+                legend.apply {
+                    isEnabled           = true
+                    textColor           = onSurfaceColor
+                    form                = Legend.LegendForm.LINE
+                    isWordWrapEnabled   = true
+                }
                 setTouchEnabled(true)
                 setPinchZoom(true)
                 isDoubleTapToZoomEnabled = false
@@ -558,14 +569,15 @@ fun MeasurementsTable(
                     }
                 }
             ) {
-                MeasurementTableRow(measurement)
+                // The button is the non-gesture way to delete; both go through the same Undo snackbar
+                MeasurementTableRow(measurement, onDelete = { onDelete(measurement.id) })
             }
         }
     }
 }
 
 @Composable
-fun MeasurementTableRow(m: MeasurementEntity) {
+fun MeasurementTableRow(m: MeasurementEntity, onDelete: () -> Unit = {}) {
     val unitSystem = LocalUnitSystem.current
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -574,13 +586,27 @@ fun MeasurementTableRow(m: MeasurementEntity) {
         )
     ) {
         Column(Modifier.padding(12.dp)) {
-            Text(
-                DateUtils.formatDate(m.date),
-                style      = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color      = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(6.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Text(
+                    DateUtils.formatDate(m.date),
+                    style      = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = MaterialTheme.colorScheme.primary
+                )
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete entry for ${DateUtils.formatDate(m.date)}",
+                        tint     = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 listOf(Metric.WEIGHT, Metric.CHEST, Metric.WAIST)
                     .forEach { metric ->
