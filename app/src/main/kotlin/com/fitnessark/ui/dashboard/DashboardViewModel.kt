@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 data class DashboardUiState(
@@ -28,6 +29,10 @@ data class DashboardUiState(
     val weightChangeLast7Days: Float? = null,
     /** Mean of the weights logged in the last 7 days (today included), or null if none. */
     val weeklyAverageWeight: Float? = null,
+    /** Whether each of the last 7 days (oldest first, today last) has an entry. */
+    val recentLogged: List<Boolean> = List(7) { false },
+    /** Weights logged in the last 7 days, oldest first, for the hero sparkline. */
+    val recentWeights: List<Float> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -72,7 +77,11 @@ class DashboardViewModel(
         } else null
 
         val todayKey = DateUtils.localDateKey(now)
+        val loggedDays = measurements.map { it.localDate }.toSet()
+        val todayDate = LocalDate.parse(todayKey)
         return DashboardUiState(
+            recentLogged = (6 downTo 0).map { todayDate.minusDays(it.toLong()).toString() in loggedDays },
+            recentWeights = weighed.reversed().map { it.weight!! },
             todayWeight = measurements.firstOrNull { it.localDate == todayKey }?.weight,
             streakDays = measurementRepo.streakOf(measurements),
             latestPhoto = latestPhoto,

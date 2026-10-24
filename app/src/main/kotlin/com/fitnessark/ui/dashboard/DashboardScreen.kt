@@ -1,6 +1,8 @@
 package com.fitnessark.ui.dashboard
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +13,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Visibility
@@ -23,8 +24,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -93,23 +102,17 @@ fun DashboardScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Streak Card
-            StreakCard(streak = state.streakDays)
-
-            // Today's Weight Card
-            TodayWeightCard(
-                weight = state.todayWeight,
-                unitSystem = unitSystem,
-                onEditClick = { openWeightDialog() }
-            )
-
-            // Progress Overview
-            ProgressOverviewCard(
-                weightChange = state.weightChangeLast7Days,
-                weeklyAverage = state.weeklyAverageWeight,
-                unitSystem = unitSystem,
-                onClick = onNavigateToProgress
-            )
+            if (state.measurementCount == 0) {
+                FirstRunCard(onCheckin = onNavigateToCheckin, onLogWeight = { openWeightDialog() })
+            } else {
+                HeroCard(
+                    state = state,
+                    unitSystem = unitSystem,
+                    onEditWeight = { openWeightDialog() },
+                    onCheckin = onNavigateToCheckin,
+                    onProgress = onNavigateToProgress
+                )
+            }
 
             // Latest Photo Preview
             if (state.latestPhoto != null) {
@@ -121,29 +124,6 @@ fun DashboardScreen(
                     date = state.latestPhoto!!.date,
                     onClick = onNavigateToPhotos
                 )
-            }
-
-            // Quick Actions
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onNavigateToCheckin,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor   = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Text("Full Check-in", color = MaterialTheme.colorScheme.onPrimary)
-                }
-                OutlinedButton(
-                    onClick = { openWeightDialog() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Log Weight Only")
-                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -184,135 +164,192 @@ fun DashboardScreen(
 }
 
 @Composable
-fun StreakCard(streak: Int) {
+fun HeroCard(
+    state: DashboardUiState,
+    unitSystem: UnitSystem,
+    onEditWeight: () -> Unit,
+    onCheckin: () -> Unit,
+    onProgress: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .clickable(onClickLabel = "Edit today's weight", onClick = onEditWeight)
                 .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "${state.streakDays} day streak",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onProgress) { Text("Progress") }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Today's weight",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = state.todayWeight?.let { Metric.WEIGHT.format(it, unitSystem) } ?: "Not logged",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (state.todayWeight != null) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (state.recentWeights.size >= 2) {
+                    Sparkline(
+                        values = state.recentWeights,
+                        modifier = Modifier.width(96.dp).height(40.dp)
+                    )
+                }
+            }
+
+            WeekChange(state.weightChangeLast7Days, state.weeklyAverageWeight, unitSystem)
+            WeekStrip(state.recentLogged)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onCheckin, modifier = Modifier.weight(1f)) { Text("Full check-in") }
+                OutlinedButton(onClick = onEditWeight, modifier = Modifier.weight(1f)) { Text("Log weight only") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekChange(weightChange: Float?, weeklyAverage: Float?, unitSystem: UnitSystem) {
+    // Neutral on purpose: a change isn't "good" or "bad", so no red/green.
+    val icon = when {
+        weightChange == null || weightChange == 0f -> Icons.Default.Remove
+        weightChange > 0f                          -> Icons.Default.ArrowUpward
+        else                                       -> Icons.Default.ArrowDownward
+    }
+    val changeText = when {
+        weightChange == null -> "—"
+        weightChange == 0f   -> "No change"
+        else                 -> "%+.1f %s".format(
+            Metric.WEIGHT.toDisplay(weightChange, unitSystem), Metric.WEIGHT.unit(unitSystem))
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = "$changeText in 7 days",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        if (weeklyAverage != null) {
+            Text(
+                text = "  ·  avg ${Metric.WEIGHT.format(weeklyAverage, unitSystem)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** Seven dots, oldest to today: filled = logged, outlined = not. The caption carries the same facts as text. */
+@Composable
+private fun WeekStrip(logged: List<Boolean>) {
+    val primary = MaterialTheme.colorScheme.primary
+    val outline = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = "Logged ${logged.count { it }} of the last 7 days"
+        }
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            logged.forEach { done ->
+                Box(
+                    Modifier
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .then(
+                            if (done) Modifier.background(primary)
+                            else Modifier.border(1.5.dp, outline, CircleShape)
+                        )
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = "${logged.count { it }}/7 days",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun Sparkline(values: List<Float>, modifier: Modifier = Modifier) {
+    val color = MaterialTheme.colorScheme.primary
+    Canvas(modifier.clearAndSetSemantics { }) {
+        val min = values.min()
+        val range = (values.max() - min).takeIf { it > 0f } ?: 1f
+        val pad = 4.dp.toPx()
+        fun point(i: Int) = Offset(
+            pad + (size.width - 2 * pad) * i / (values.size - 1),
+            size.height - pad - (size.height - 2 * pad) * (values[i] - min) / range
+        )
+        val path = Path().apply {
+            moveTo(point(0).x, point(0).y)
+            for (i in 1 until values.size) lineTo(point(i).x, point(i).y)
+        }
+        drawPath(path, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(color, radius = 3.5.dp.toPx(), center = point(values.lastIndex))
+    }
+}
+
+@Composable
+private fun FirstRunCard(onCheckin: () -> Unit, onLogWeight: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
                 Icons.Default.LocalFireDepartment,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(40.dp)
             )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "$streak Day Streak",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = if (streak > 0) "Keep it up!" else "Start logging to build your streak",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TodayWeightCard(weight: Float?, unitSystem: UnitSystem, onEditClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    "Today's Weight",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = weight?.let { Metric.WEIGHT.format(it, unitSystem) } ?: "Not logged",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (weight != null) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            FilledIconButton(onClick = onEditClick) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit weight")
-            }
-        }
-    }
-}
-
-@Composable
-fun ProgressOverviewCard(weightChange: Float?, weeklyAverage: Float?, unitSystem: UnitSystem, onClick: () -> Unit = {}) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Neutral on purpose: a change isn't "good" or "bad", so no red/green.
-            val trendColor = MaterialTheme.colorScheme.onSurface
-            val trendIcon = when {
-                weightChange == null || weightChange == 0f -> Icons.Default.Remove
-                weightChange > 0f                          -> Icons.Default.ArrowUpward
-                else                                       -> Icons.Default.ArrowDownward
-            }
-
-            Icon(
-                imageVector = trendIcon,
-                contentDescription = null,
-                tint = trendColor,
-                modifier = Modifier.size(28.dp)
+            Text(
+                "Nothing logged yet",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    "Last 7 Days",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                val changeText = when {
-                    weightChange == null -> "—"
-                    weightChange == 0f   -> "No change"
-                    else                 -> "%+.1f %s".format(
-                        Metric.WEIGHT.toDisplay(weightChange, unitSystem), Metric.WEIGHT.unit(unitSystem))
-                }
-                Text(
-                    text = changeText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = trendColor
-                )
-                if (weeklyAverage != null) {
-                    Text(
-                        text = "7-day average ${Metric.WEIGHT.format(weeklyAverage, unitSystem)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Text(
+                "Log your weight, measurements and photos to start your streak and see your progress.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Button(onClick = onCheckin, modifier = Modifier.fillMaxWidth()) { Text("Start your first check-in") }
+            TextButton(onClick = onLogWeight) { Text("Log weight only") }
         }
     }
 }
