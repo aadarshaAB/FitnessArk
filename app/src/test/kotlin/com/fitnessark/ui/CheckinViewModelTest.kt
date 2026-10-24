@@ -24,6 +24,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -189,6 +191,42 @@ class CheckinViewModelTest {
         val saved = measurements.getMeasurementForDay(noon(0))!!
         assertEquals(72.5f, saved.weight!!, 0.0001f)      // not 72.49 from a 159.8 lb round trip
         assertEquals(83.82f, saved.waist!!, 0.01f)
+    }
+
+    @Test fun a_fresh_or_untouched_form_has_no_unsaved_input() = runBlocking {
+        measurements.saveMeasurement(MeasurementEntity(date = noon(0), weight = 72.5f, notes = "n"))
+
+        val blank = viewModel(noon(3))
+        assertFalse(blank.hasUnsavedInput(blank.uiState.value))
+
+        val prefilled = viewModel(noon(0))
+        val state = prefilled.uiState.await { it.text(Metric.WEIGHT).isNotEmpty() }
+        assertFalse(prefilled.hasUnsavedInput(state))      // filled from the saved day, not edited
+    }
+
+    @Test fun typing_notes_or_a_photo_counts_as_unsaved_input() = runBlocking {
+        val vm = viewModel(noon(3))
+        vm.update(Metric.WAIST, "80")
+        assertTrue(vm.hasUnsavedInput(vm.uiState.value))
+        vm.update(Metric.WAIST, "")
+        assertFalse(vm.hasUnsavedInput(vm.uiState.value))  // typed and cleared again
+
+        vm.updateNotes("felt strong")
+        assertTrue(vm.hasUnsavedInput(vm.uiState.value))
+        vm.updateNotes("")
+
+        vm.setPhotoUri(PhotoAngle.FRONT, Uri.parse("content://x/1"))
+        assertTrue(vm.hasUnsavedInput(vm.uiState.value))
+    }
+
+    @Test fun editing_a_prefilled_field_counts_as_unsaved_input() = runBlocking {
+        measurements.saveMeasurement(MeasurementEntity(date = noon(0), weight = 72.5f))
+
+        val vm = viewModel(noon(0))
+        vm.uiState.await { it.text(Metric.WEIGHT).isNotEmpty() }
+        vm.update(Metric.WEIGHT, "73")
+
+        assertTrue(vm.hasUnsavedInput(vm.uiState.value))
     }
 
     @Test fun imperial_range_check_uses_the_converted_limits() = runBlocking {

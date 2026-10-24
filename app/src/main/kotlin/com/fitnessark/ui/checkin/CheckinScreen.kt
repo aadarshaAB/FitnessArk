@@ -3,9 +3,11 @@ package com.fitnessark.ui.checkin
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -23,9 +25,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -54,11 +58,11 @@ private val poseSlots = listOf(
         "Stand straight, arms slightly away from sides, facing the camera",
         "Keep your feet shoulder-width apart"),
     PoseSlot(PhotoAngle.SIDE,
-        "🧍",
+        "🚶",
         "Turn 90° to your left, arms relaxed at sides",
         "Look straight ahead, chin parallel to the floor"),
     PoseSlot(PhotoAngle.BACK,
-        "🧍",
+        "🔙",
         "Turn around completely, arms slightly away from sides",
         "Feet shoulder-width apart, head straight")
 )
@@ -89,16 +93,16 @@ fun CheckinScreen(
         }
     }
 
-    // Photo source dialog state — dialogTargetSlot also doubles as "which pose a pending in-app
-    // camera / gallery result belongs to", since the camera route itself carries the PhotoAngle
-    // (there's no separate "pending slot" to let drift from what was actually opened).
-    var showSourceDialog by rememberSaveable { mutableStateOf(false) }
-    var dialogTargetSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
+    // R10: leaving with anything typed or picked asks first. Nothing typed leaves straight away.
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
+    val hasUnsaved = viewModel.hasUnsavedInput(state)
+    val requestBack = { if (hasUnsaved && !state.isSaving) showDiscardDialog = true else onNavigateBack() }
+    BackHandler(enabled = hasUnsaved && !state.isSaving) { showDiscardDialog = true }
 
-    fun openSource(slot: PhotoAngle) {
-        dialogTargetSlot = slot
-        showSourceDialog = true
-    }
+    // dialogTargetSlot is "which pose a pending in-app camera / gallery result belongs to", since
+    // the camera route itself carries the PhotoAngle (there's no separate "pending slot" to let
+    // drift from what was actually opened).
+    var dialogTargetSlot by rememberSaveable { mutableStateOf<PhotoAngle?>(null) }
 
     LaunchedEffect(cameraResult.value) {
         val uriString = cameraResult.value ?: return@LaunchedEffect
@@ -114,9 +118,9 @@ fun CheckinScreen(
         onCameraFailureConsumed()
     }
 
-    // F11: CAMERA is requested at runtime the first time "Take Photo" is tapped, not declared and
-    // left unrequested (that was the old Q1 bug). A denial falls back to "Choose from Gallery"
-    // for that attempt instead of silently doing nothing.
+    // F11: CAMERA is requested at runtime the first time "Take photo" is tapped, not declared and
+    // left unrequested (that was the old Q1 bug). A denial falls back to the gallery button for
+    // that attempt instead of silently doing nothing.
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -129,7 +133,7 @@ fun CheckinScreen(
         }
     }
 
-    // Gallery fallback launcher (one per slot)
+    // Gallery launcher (one for all poses; dialogTargetSlot says which)
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -137,14 +141,38 @@ fun CheckinScreen(
         dialogTargetSlot = null
     }
 
+    // R9: "Take photo" goes straight to the camera (asking for permission first if needed).
+    fun takePhoto(slot: PhotoAngle) {
+        dialogTargetSlot = slot
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasPermission) onOpenInAppCamera(slot)
+        else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    fun pickFromGallery(slot: PhotoAngle) {
+        dialogTargetSlot = slot
+        galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
+
+    // R7: only weight is shown up front; the other measurements fold away until asked for.
+    val otherMetrics = Metric.entries.filter { it != Metric.WEIGHT }
+    var moreExpanded by rememberSaveable { mutableStateOf(false) }
+    val othersFilled = otherMetrics.any { state.text(it).isNotBlank() }
+    // A day that already has other measurements opens the section by itself
+    LaunchedEffect(othersFilled) { if (othersFilled) moreExpanded = true }
+    // ...and a field with an error never stays hidden
+    val showMore = moreExpanded || otherMetrics.any { viewModel.fieldError(it, state) != null }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Full Check-in") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = requestBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
@@ -152,6 +180,42 @@ fun CheckinScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        // R8: Save stays on screen however far the form is scrolled
+        bottomBar = {
+            Surface(tonalElevation = 3.dp) {
+                Button(
+                    onClick = { viewModel.save() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .height(52.dp),
+                    enabled = !state.isSaving,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (state.isSaving) {
+                        CircularProgressIndicator(
+                            Modifier.size(22.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.5.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("Saving…", color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.SemiBold)
+                    } else {
+                        Icon(Icons.Default.Check, null,
+                            tint = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Save Check-in", color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    }
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -176,12 +240,12 @@ fun CheckinScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                Text(
-                    DateUtils.formatDate(state.date),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    Text(
+                        DateUtils.formatDate(state.date),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Icon(Icons.Default.Edit, "Change date",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(14.dp))
@@ -191,34 +255,36 @@ fun CheckinScreen(
             // ── Measurements ────────────────────────────────────────────
             SectionHeader(icon = Icons.Default.Straighten, title = "Measurements")
 
-            // Two-column grid for measurements
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Metric.entries.chunked(2).forEach { row ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        row.forEach { metric ->
-                            val unit = metric.unit(state.unitSystem)
-                            val fieldError = viewModel.fieldError(metric, state)
-                            OutlinedTextField(
-                                value = state.text(metric),
-                                onValueChange = { viewModel.update(metric, it) },
-                                label = { Text("${metric.label} ($unit)") },
-                                isError = fieldError != null,
-                                supportingText = fieldError?.let { { Text(it) } },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                trailingIcon = {
-                                    Text(unit,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(end = 4.dp))
-                                }
-                            )
+            MeasurementField(Metric.WEIGHT, state, viewModel, Modifier.fillMaxWidth())
+
+            TextButton(
+                onClick = { moreExpanded = !showMore },
+                modifier = Modifier.semantics {
+                    stateDescription = if (showMore) "Expanded" else "Collapsed"
+                }
+            ) {
+                Text("More measurements")
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    if (showMore) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null
+                )
+            }
+
+            AnimatedVisibility(visible = showMore) {
+                // Two-column grid; every field reserves its error line, so an error doesn't shift
+                // the rows below it
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    otherMetrics.chunked(2).forEach { row ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            row.forEach { metric ->
+                                MeasurementField(metric, state, viewModel, Modifier.weight(1f))
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
-                        if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }
@@ -239,7 +305,7 @@ fun CheckinScreen(
             SectionHeader(icon = Icons.Default.CameraAlt, title = "Progress Photos")
 
             Text(
-                "Tap each pose to take a photo with your camera. Stand about 2–3 metres from a wall-mounted phone or have someone assist.",
+                "Prop your phone against a wall or use a tripod about 2–3 m away, or ask someone to hold it. Tap Take photo on each pose.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -247,45 +313,14 @@ fun CheckinScreen(
             // Three pose cards
             poseSlots.forEach { slot ->
                 PoseCaptureCard(
-                    slot      = slot,
+                    slot        = slot,
                     capturedUri = state.photoUris[slot.angle],
-                    onCapture = { openSource(slot.angle) },
-                    onRetake  = { openSource(slot.angle) }
+                    onTakePhoto = { takePhoto(slot.angle) },
+                    onPickFromGallery = { pickFromGallery(slot.angle) }
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
-
-            // ── Save button ─────────────────────────────────────────────
-            Button(
-                onClick = { viewModel.save() },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled = !state.isSaving,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor   = MaterialTheme.colorScheme.onPrimary
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                if (state.isSaving) {
-                    CircularProgressIndicator(
-                        Modifier.size(22.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.5.dp
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text("Saving…", color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.SemiBold)
-                } else {
-                    Icon(Icons.Default.Check, null,
-                        tint = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Save Check-in", color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -313,65 +348,49 @@ fun CheckinScreen(
         ) { DatePicker(state = pickerState) }
     }
 
-    // ── Photo source bottom-sheet dialog ──────────────────────────────────
-    if (showSourceDialog) {
+    if (showDiscardDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showSourceDialog = false
-                dialogTargetSlot = null
-            },
-            title = {
-                val slotLabel = dialogTargetSlot?.label.orEmpty()
-                Text("Add $slotLabel Photo")
-            },
-            text = { Text("Choose how you'd like to add this photo.") },
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard this check-in?") },
+            text = { Text("What you've entered hasn't been saved.") },
             confirmButton = {
-                // Camera option (F11: opens the in-app camera, front lens + 5s timer by default)
-                Button(
+                TextButton(
                     onClick = {
-                        showSourceDialog = false
-                        val hasPermission = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.CAMERA
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (hasPermission) {
-                            dialogTargetSlot?.let { onOpenInAppCamera(it) }
-                        } else {
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
+                        showDiscardDialog = false
+                        onNavigateBack()
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor   = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Icon(Icons.Default.CameraAlt, null,
-                        tint = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Take Photo", color = MaterialTheme.colorScheme.onPrimary)
-                }
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Discard") }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = {
-                        showSourceDialog = false
-                        galleryLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Choose from Gallery")
-                }
-            },
-            icon = {
-                Icon(Icons.Default.AddAPhoto,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp))
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
             }
         )
     }
+}
+
+// ─── Measurement field ────────────────────────────────────────────────────────
+
+@Composable
+private fun MeasurementField(
+    metric: Metric,
+    state: CheckinUiState,
+    viewModel: CheckinViewModel,
+    modifier: Modifier = Modifier
+) {
+    val fieldError = viewModel.fieldError(metric, state)
+    OutlinedTextField(
+        value = state.text(metric),
+        onValueChange = { viewModel.update(metric, it) },
+        // The unit appears once, in the label
+        label = { Text("${metric.label} (${metric.unit(state.unitSystem)})") },
+        isError = fieldError != null,
+        // Always one line tall, so an error doesn't push the fields below it down
+        supportingText = { Text(fieldError ?: " ") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = modifier,
+        singleLine = true
+    )
 }
 
 // ─── Pose Capture Card ────────────────────────────────────────────────────────
@@ -380,8 +399,8 @@ fun CheckinScreen(
 private fun PoseCaptureCard(
     slot: PoseSlot,
     capturedUri: Uri?,
-    onCapture: () -> Unit,
-    onRetake: () -> Unit
+    onTakePhoto: () -> Unit,
+    onPickFromGallery: () -> Unit
 ) {
     val captured = capturedUri != null
 
@@ -423,7 +442,7 @@ private fun PoseCaptureCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
                     )
-                    // Green tick overlay
+                    // Done tick overlay
                     Box(
                         modifier = Modifier
                             .size(22.dp)
@@ -441,7 +460,9 @@ private fun PoseCaptureCard(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(slot.emoji, fontSize = 28.sp)
+                        // Decorative: the label right below names the pose
+                        Text(slot.emoji, fontSize = 28.sp,
+                            modifier = Modifier.clearAndSetSemantics { })
                         Text(slot.angle.label,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -449,7 +470,7 @@ private fun PoseCaptureCard(
                 }
             }
 
-            // Info + button
+            // Info + buttons
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -480,43 +501,60 @@ private fun PoseCaptureCard(
                     lineHeight = 16.sp
                 )
                 if (!captured) {
-                    Text(
-                        "💡 ${slot.hint}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(Icons.Default.Lightbulb, null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp))
+                        Text(
+                            slot.hint,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(4.dp))
 
-                if (captured) {
-                    OutlinedButton(
-                        onClick = onRetake,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = 6.dp)
-                    ) {
-                        Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Retake", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (captured) {
+                        OutlinedButton(
+                            onClick = onTakePhoto,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Retake", style = MaterialTheme.typography.labelMedium)
+                        }
+                    } else {
+                        Button(
+                            onClick = onTakePhoto,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor   = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Take photo",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.labelLarge)
+                        }
                     }
-                } else {
-                    Button(
-                        onClick = onCapture,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor   = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        contentPadding = PaddingValues(vertical = 8.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.CameraAlt, null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Capture ${slot.angle.label}",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.labelLarge)
+                    OutlinedIconButton(onClick = onPickFromGallery) {
+                        Icon(Icons.Default.PhotoLibrary,
+                            contentDescription = "Choose ${slot.angle.label.lowercase()} photo from gallery")
                     }
                 }
             }

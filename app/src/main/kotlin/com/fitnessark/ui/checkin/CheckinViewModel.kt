@@ -126,6 +126,15 @@ class CheckinViewModel(
         }
     }
 
+    /**
+     * True if the form holds anything not yet saved: a field or the notes differ from what the
+     * day was filled with (or from blank), or a photo is picked. Drives the discard prompt.
+     */
+    fun hasUnsavedInput(state: CheckinUiState): Boolean =
+        state.photoUris.isNotEmpty() ||
+            state.notes != (loaded?.notes ?: "") ||
+            Metric.entries.any { state.text(it) != (loadedText[it] ?: "") }
+
     /** Error text for a measurement field, or null when it is blank or valid. */
     fun fieldError(metric: Metric, state: CheckinUiState): String? =
         MeasurementInput.validate(metric, state.text(metric), state.unitSystem)
