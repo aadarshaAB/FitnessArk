@@ -9,10 +9,13 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
@@ -83,8 +86,8 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
                         IconButton(onClick = { viewModel.toggleComparisonMode() }) {
                             Icon(
                                 if (state.comparisonMode) Icons.Default.Close
-                                else Icons.Default.ShowChart,
-                                contentDescription = "Compare",
+                                else Icons.AutoMirrored.Filled.CompareArrows,
+                                contentDescription = if (state.comparisonMode) "Exit compare" else "Compare two days",
                                 tint = if (state.comparisonMode) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurface
                             )
@@ -103,42 +106,40 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ── Metric chips ──────────────────────────────────────────────
-            LazyRow(
-                contentPadding        = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // ── Metric dropdown + 7-day average toggle ────────────────────
+            Row(
+                modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment     = Alignment.CenterVertically
             ) {
-                items(Metric.entries.toTypedArray()) { metric ->
+                MetricDropdown(
+                    selected = state.selectedMetric,
+                    onSelect = { viewModel.changeMetric(it) },
+                    modifier = Modifier.weight(1f)
+                )
+                if (!state.showTableView) {
                     FilterChip(
-                        selected = state.selectedMetric == metric,
-                        onClick  = { viewModel.changeMetric(metric) },
-                        label    = { Text(metric.label) }
+                        selected = state.showTrend,
+                        onClick  = { viewModel.toggleTrend() },
+                        label    = { Text("7-day avg") }
                     )
                 }
             }
 
-            // ── Date range chips ──────────────────────────────────────────
-            LazyRow(
-                contentPadding        = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // ── Date range ────────────────────────────────────────────────
+            SingleChoiceSegmentedButtonRow(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
-                items(DateRange.entries.toTypedArray()) { range ->
-                    FilterChip(
+                DateRange.entries.forEachIndexed { index, range ->
+                    SegmentedButton(
                         selected = state.dateRange == range,
                         onClick  = { viewModel.changeDateRange(range) },
+                        shape    = SegmentedButtonDefaults.itemShape(index, DateRange.entries.size),
                         label    = { Text(range.label) }
                     )
                 }
-                if (!state.showTableView) {
-                    item {
-                        FilterChip(
-                            selected = state.showTrend,
-                            onClick  = { viewModel.toggleTrend() },
-                            label    = { Text("7-day avg") }
-                        )
-                    }
-                }
             }
+            Spacer(Modifier.height(8.dp))
 
             if (state.isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -156,6 +157,53 @@ fun MeasurementsScreen(viewModel: MeasurementsViewModel = koinViewModel()) {
                 ChartView(state = state, viewModel = viewModel)
             }
         }
+    }
+}
+
+@Composable
+private fun MetricDropdown(selected: Metric, onSelect: (Metric) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(selected.label, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ArrowDropDown, contentDescription = "Choose measurement")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            Metric.entries.forEach { metric ->
+                DropdownMenuItem(
+                    text    = { Text(metric.label) },
+                    onClick = { expanded = false; onSelect(metric) }
+                )
+            }
+        }
+    }
+}
+
+/** Start / latest / change / average over the visible range, in words as well as on the chart. */
+@Composable
+private fun RangeSummary(metric: Metric, values: List<Float>, unitSystem: com.fitnessark.data.model.UnitSystem) {
+    val change = values.last() - values.first()
+    val changeText = if (change == 0f) "No change"
+        else "%+.1f %s".format(metric.toDisplay(change, unitSystem), metric.unit(unitSystem))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .semantics(mergeDescendants = true) { },
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        SummaryCell("Start",   metric.format(values.first(), unitSystem))
+        SummaryCell("Latest",  metric.format(values.last(), unitSystem))
+        SummaryCell("Change",  changeText)
+        SummaryCell("Average", metric.format(values.average().toFloat(), unitSystem))
+    }
+}
+
+@Composable
+private fun SummaryCell(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -185,10 +233,13 @@ private fun ChartView(
         "to ${state.selectedMetric.format(last.y, unitSystem)} on ${chartLabels[last.x].orEmpty()}. " +
         "Switch to the table view to hear every value."
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+
+        RangeSummary(state.selectedMetric, chartData.map { it.y }, unitSystem)
 
         // ── Line chart ────────────────────────────────────────────────────
         MeasurementLineChart(
+            animateKey  = "${state.selectedMetric}-${state.dateRange}",
             entries     = chartData.map { Entry(it.x, state.selectedMetric.toDisplay(it.y, unitSystem), it.data) },
             trendEntries = trendData.map { Entry(it.x, state.selectedMetric.toDisplay(it.y, unitSystem)) },
             labels      = chartLabels,
@@ -227,12 +278,12 @@ private fun ChartView(
         // ── Comparison panel ──────────────────────────────────────────────
         if (state.comparisonMode) {
             ComparisonModePanel(
-                measurements = viewModel.filteredMeasurementsWithValue(state.selectedMetric),
+                measurements = state.measurements,
                 selected     = state.selectedComparisonPoints,
-                result       = state.comparisonResult,
-                onSelect     = { viewModel.selectComparisonPoint(it) }
+                result       = state.comparisonResult
             )
         }
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -266,19 +317,12 @@ fun DayDetailCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        "📅  ${DateUtils.formatDate(measurement.date)}",
-                        style      = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        "Tap another dot to compare",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                    )
-                }
+                Text(
+                    "📅  ${DateUtils.formatDate(measurement.date)}",
+                    style      = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color      = MaterialTheme.colorScheme.onPrimaryContainer
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     // Delete entry
                     IconButton(onClick = { showDeleteConfirm = true }) {
@@ -432,6 +476,8 @@ fun MeasurementLineChart(
     labels:           Map<Float, String>,
     trendEntries:     List<Entry>,
     metricLabel:      String,
+    /** The chart animates in only when this changes (metric or range), not on every selection. */
+    animateKey:       String,
     onValueSelected:  (Int) -> Unit,
     onNothingSelected: () -> Unit,
     modifier:         Modifier = Modifier
@@ -488,12 +534,23 @@ fun MeasurementLineChart(
         update = { chart ->
             if (entries.isEmpty()) return@AndroidView
 
+            // Rebuilding the data clears the tapped-dot highlight and replays the animation, so skip
+            // it when nothing the chart draws has changed (e.g. recomposition after a dot is selected).
+            val signature = listOf(
+                entries.map { it.x to it.y }, trendEntries.map { it.x to it.y }, labels, metricLabel,
+                primaryColor, trendColor, highlightColor, dotHoleColor
+            )
+            val previous = chart.tag as? Pair<*, *>
+            if (previous?.first == signature) return@AndroidView
+            val animate = previous?.second != animateKey
+            chart.tag = signature to animateKey
+
             val dataSet = LineDataSet(entries, metricLabel).apply {
                 color                   = primaryColor
                 setCircleColor(primaryColor)
                 lineWidth               = 2.5f
-                circleRadius            = 5f
-                circleHoleRadius        = 2.5f
+                circleRadius            = 6.5f
+                circleHoleRadius        = 3f
                 circleHoleColor         = dotHoleColor
                 setDrawValues(false)
                 mode                    = LineDataSet.Mode.CUBIC_BEZIER
@@ -523,7 +580,7 @@ fun MeasurementLineChart(
                 }
             }
             chart.data                 = LineData(dataSets)
-            chart.animateX(400)
+            if (animate) chart.animateX(400)
             chart.invalidate()
         },
         modifier = modifier
@@ -649,8 +706,7 @@ fun MeasurementTableRow(m: MeasurementEntity, onDelete: () -> Unit = {}) {
 fun ComparisonModePanel(
     measurements: List<MeasurementEntity>,
     selected:     Pair<String?, String?>,
-    result:       ComparisonResult?,
-    onSelect:     (String) -> Unit
+    result:       ComparisonResult?
 ) {
     val unitSystem = LocalUnitSystem.current
     Card(
@@ -662,21 +718,19 @@ fun ComparisonModePanel(
         )
     ) {
         Column(Modifier.padding(12.dp)) {
-            Text("Comparison Mode", style = MaterialTheme.typography.titleSmall,
+            Text("Compare two days", style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold)
-            Text("Select two data points",
+            val dates = listOf(selected.first, selected.second).mapNotNull { id ->
+                measurements.find { it.id == id }?.let { DateUtils.formatDateShort(it.date) }
+            }
+            Text(
+                when (dates.size) {
+                    0    -> "Tap two dots on the chart"
+                    1    -> "${dates[0]} selected. Tap a second dot."
+                    else -> "${dates[0]} and ${dates[1]}"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(measurements) { m ->
-                    FilterChip(
-                        selected = m.id == selected.first || m.id == selected.second,
-                        onClick  = { onSelect(m.id) },
-                        label    = { Text(DateUtils.formatDateShort(m.date)) }
-                    )
-                }
-            }
             AnimatedVisibility(visible = result != null) {
                 result?.let {
                     Spacer(Modifier.height(8.dp))

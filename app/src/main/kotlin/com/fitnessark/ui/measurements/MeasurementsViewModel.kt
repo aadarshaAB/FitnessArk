@@ -131,6 +131,11 @@ class MeasurementsViewModel(
     fun selectChartEntry(entryIndex: Int) {
         val list = filteredMeasurementsWithValue(_uiState.value.selectedMetric)
         val measurement = list.getOrNull(entryIndex)
+        // In compare mode a dot tap picks one of the two days instead of opening the day card.
+        if (_uiState.value.comparisonMode) {
+            measurement?.let { selectComparisonPoint(it.id) }
+            return
+        }
         _uiState.update { it.copy(selectedDayMeasurement = measurement) }
     }
 
