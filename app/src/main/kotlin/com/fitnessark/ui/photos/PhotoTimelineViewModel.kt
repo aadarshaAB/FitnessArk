@@ -23,6 +23,8 @@ data class PhotoTimelineUiState(
     val beforeAfterMode: Boolean          = false,
     val beforePhoto:    PhotoEntity?      = null,
     val afterPhoto:     PhotoEntity?      = null,
+    /** Which pose the normal (single-photo) view shows. */
+    val viewAngle:      PhotoAngle        = PhotoAngle.FRONT,
     /** Which pose the before/after comparison shows for both photos. */
     val compareAngle:   PhotoAngle        = PhotoAngle.FRONT,
     val compareLayout:  ComparisonLayout  = ComparisonLayout.SLIDER,
@@ -42,7 +44,8 @@ class PhotoTimelineViewModel(
                 _uiState.update {
                     it.copy(
                         photos        = list,
-                        selectedPhoto = it.selectedPhoto ?: list.firstOrNull(),
+                        // Re-read from the new list so a retake/angle delete in the detail screen shows up here
+                        selectedPhoto = list.find { p -> p.id == it.selectedPhoto?.id } ?: list.firstOrNull(),
                         isLoading     = false
                     )
                 }
@@ -64,6 +67,8 @@ class PhotoTimelineViewModel(
             )
         }
     }
+
+    fun setViewAngle(angle: PhotoAngle) = _uiState.update { it.copy(viewAngle = angle) }
 
     fun setCompareAngle(angle: PhotoAngle) = _uiState.update { it.copy(compareAngle = angle) }
 
